@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Block Neon 🎮
 
 Jogo de blocos no estilo Tetris/Lumines com visual neon para Android,
@@ -76,3 +77,6 @@ Flags úteis:
 ## 📄 Licença
 
 MIT License — sinta-se livre para usar, modificar e distribuir.
+=======
+# BlockNeon-
+>>>>>>> 199e0db (Initial commit)
