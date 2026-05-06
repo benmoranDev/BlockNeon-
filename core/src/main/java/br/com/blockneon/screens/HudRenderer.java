@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Array;
 import br.com.blockneon.model.Tetromino;
@@ -16,17 +17,19 @@ import com.badlogic.gdx.math.Rectangle;
 public class HudRenderer {
 
     // =========================================================
-    // Panel palette / Paleta dos painéis
+    // Panel palette — neon
     // =========================================================
 
-    private static final Color PANEL_OUTER = new Color(0.36f, 0.32f, 0.46f, 1f);
-    private static final Color PANEL_INNER = new Color(0.21f, 0.18f, 0.28f, 1f);
-    private static final Color PANEL_HIGHLIGHT = new Color(1f, 1f, 1f, 0.06f);
-    private static final Color PANEL_OUTLINE = new Color(0.60f, 0.56f, 0.78f, 0.90f);
-    private static final Color BOX_OUTLINE = new Color(0.46f, 0.42f, 0.62f, 0.95f);
+    private static final Color PANEL_OUTER      = new Color(0.04f, 0.10f, 0.20f, 1f);
+    private static final Color PANEL_INNER      = new Color(0.02f, 0.06f, 0.14f, 1f);
+    private static final Color PANEL_HIGHLIGHT  = new Color(1f,    1f,    1f,    0.05f);
+    private static final Color PANEL_OUTLINE    = new Color(0.20f, 0.80f, 1.00f, 0.55f);
+    private static final Color BOX_OUTLINE      = new Color(0.18f, 0.70f, 0.90f, 0.70f);
+    private static final Color BOX_BG           = new Color(0.03f, 0.08f, 0.16f, 1f);
+    private static final Color BOX_BG_INNER     = new Color(0.02f, 0.05f, 0.10f, 1f);
 
     // =========================================================
-    // Piece palette / Paleta das peças
+    // Piece palette
     // =========================================================
 
     private static final Color BLOCK_I = new Color(0.20f, 0.88f, 1.00f, 1f);
@@ -38,23 +41,23 @@ public class HudRenderer {
     private static final Color BLOCK_Z = new Color(1.00f, 0.22f, 0.20f, 1f);
 
     // =========================================================
-    // Text colors / Cores do texto
+    // Text colors
     // =========================================================
 
-    private static final Color TEXT_WHITE = new Color(1f, 1f, 1f, 1f);
-    private static final Color TEXT_HINT = new Color(1f, 1f, 1f, 0.42f);
-    private static final Color TEXT_SHADOW = new Color(0f, 0f, 0f, 0.35f);
-    private static final Color TEXT_VALUE = new Color(1f, 0.72f, 0.12f, 1f);
+    private static final Color TEXT_WHITE  = new Color(1f,    1f,    1f,    1f);
+    private static final Color TEXT_HINT   = new Color(1f,    1f,    1f,    0.38f);
+    private static final Color TEXT_SHADOW = new Color(0f,    0f,    0f,    0.50f);
+    private static final Color TEXT_VALUE  = new Color(1f,    0.85f, 0.20f, 1f);
 
     // =========================================================
-    // Rendering / Renderização
+    // Rendering
     // =========================================================
 
     private final ShapeRenderer shapeRenderer;
-    private final SpriteBatch batch;
+    private final SpriteBatch   batch;
 
     // =========================================================
-    // Fonts / Fontes
+    // Fonts
     // =========================================================
 
     private final BitmapFont titleFont;
@@ -62,9 +65,19 @@ public class HudRenderer {
     private final BitmapFont valueFont;
     private final BitmapFont hintFont;
 
+    // =========================================================
+    // State
+    // =========================================================
+
+    private float time = 0f;
+
+    // =========================================================
+    // Constructor
+    // =========================================================
+
     public HudRenderer() {
         shapeRenderer = new ShapeRenderer();
-        batch = new SpriteBatch();
+        batch         = new SpriteBatch();
 
         titleFont = new BitmapFont();
         titleFont.getData().setScale(1.05f);
@@ -79,24 +92,34 @@ public class HudRenderer {
         hintFont.getData().setScale(0.78f);
     }
 
+    // =========================================================
+    // Public render
+    // =========================================================
+
     /**
      * Renders the whole HUD layer.
      * Renderiza toda a camada de HUD.
      */
-    public void render(OrthographicCamera camera, GameLayout layout, GameSession session) {
+    public void render(OrthographicCamera camera, GameLayout layout,
+                       GameSession session, float delta) {
+        time += delta;
+
         shapeRenderer.setProjectionMatrix(camera.combined);
         batch.setProjectionMatrix(camera.combined);
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
+        // ── Passe 1: painéis + caixas (Filled) ───────────────
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         drawTopBottomPanels(layout);
+        drawTopAdBar(layout);
         drawTopBottomBoxes(layout);
         drawHoldPiecePreview(layout, session);
         drawNextQueuePreviews(layout, session);
         shapeRenderer.end();
 
+        // ── Passe 2: contornos (Line) ─────────────────────────
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         drawTopBottomPanelOutlines(layout);
         drawTopBottomBoxOutlines(layout);
@@ -108,36 +131,41 @@ public class HudRenderer {
     }
 
     // =========================================================
-    // Shells / Carcaças
+    // Shells
     // =========================================================
 
-    /**
-     * Draws the top and bottom shell panels.
-     * Desenha os painéis externos superior e inferior.
-     */
     private void drawTopBottomPanels(GameLayout layout) {
         drawArcadeShell(layout.topShellBounds);
         drawArcadeShell(layout.bottomShellBounds);
     }
 
-    /**
-     * Draws the outlines of the top and bottom shells.
-     * Desenha os contornos dos painéis superior e inferior.
-     */
+    // Barra de anúncio superior
+    private void drawTopAdBar(GameLayout layout) {
+        Rectangle ad = layout.topAdBounds;
+
+        // Fundo da barra
+        shapeRenderer.setColor(0.03f, 0.08f, 0.18f, 1f);
+        shapeRenderer.rect(ad.x, ad.y, ad.width, ad.height);
+
+        // Linha de destaque inferior
+        shapeRenderer.setColor(0.20f, 0.80f, 1f, 0.35f);
+        shapeRenderer.rect(ad.x, ad.y, ad.width, 2f);
+
+        // Glow levinho
+        float pulse = (MathUtils.sin(time * 2.8f) + 1f) * 0.5f;
+        shapeRenderer.setColor(0.20f, 0.80f, 1f, 0.05f + pulse * 0.04f);
+        shapeRenderer.rect(ad.x - 2f, ad.y - 2f, ad.width + 4f, ad.height + 4f);
+    }
+
     private void drawTopBottomPanelOutlines(GameLayout layout) {
         drawArcadeShellOutline(layout.topShellBounds);
         drawArcadeShellOutline(layout.bottomShellBounds);
     }
 
-    /**
-     * Draws all HUD boxes.
-     * Desenha todas as caixas do HUD.
-     */
     private void drawTopBottomBoxes(GameLayout layout) {
         drawArcadeBox(layout.holdBox);
         drawArcadeBox(layout.levelBox);
         drawArcadeBox(layout.goalBox);
-
         drawArcadeBox(layout.nextMainBox);
         drawArcadeBox(layout.nextQueueBox1);
         drawArcadeBox(layout.nextQueueBox2);
@@ -145,15 +173,10 @@ public class HudRenderer {
         drawArcadeBox(layout.nextQueueBox4);
     }
 
-    /**
-     * Draws the outlines of all HUD boxes.
-     * Desenha os contornos de todas as caixas do HUD.
-     */
     private void drawTopBottomBoxOutlines(GameLayout layout) {
         drawArcadeBoxOutline(layout.holdBox);
         drawArcadeBoxOutline(layout.levelBox);
         drawArcadeBoxOutline(layout.goalBox);
-
         drawArcadeBoxOutline(layout.nextMainBox);
         drawArcadeBoxOutline(layout.nextQueueBox1);
         drawArcadeBoxOutline(layout.nextQueueBox2);
@@ -161,276 +184,250 @@ public class HudRenderer {
         drawArcadeBoxOutline(layout.nextQueueBox4);
     }
 
-    /**
-     * Draws one arcade shell panel.
-     * Desenha um painel externo arcade.
-     */
     private void drawArcadeShell(Rectangle bounds) {
+        // Fundo externo
         shapeRenderer.setColor(PANEL_OUTER);
         shapeRenderer.rect(bounds.x, bounds.y, bounds.width, bounds.height);
 
+        // Camada interna
         shapeRenderer.setColor(PANEL_INNER);
-        shapeRenderer.rect(bounds.x + 4f, bounds.y + 4f, bounds.width - 8f, bounds.height - 8f);
+        shapeRenderer.rect(bounds.x + 4f, bounds.y + 4f,
+            bounds.width - 8f, bounds.height - 8f);
 
+        // Reflexo de vidro
         shapeRenderer.setColor(PANEL_HIGHLIGHT);
-        shapeRenderer.rect(bounds.x + 6f, bounds.y + bounds.height - 16f, bounds.width - 12f, 7f);
+        shapeRenderer.rect(bounds.x + 6f, bounds.y + bounds.height - 16f,
+            bounds.width - 12f, 7f);
+
+        // Glow pulsante na borda superior do painel
+        float pulse = (MathUtils.sin(time * 2.2f) + 1f) * 0.5f;
+        shapeRenderer.setColor(0.20f, 0.80f, 1f, 0.04f + pulse * 0.04f);
+        shapeRenderer.rect(bounds.x - 2f, bounds.y - 2f,
+            bounds.width + 4f, bounds.height + 4f);
     }
 
-    /**
-     * Draws one arcade shell outline.
-     * Desenha o contorno de um painel externo arcade.
-     */
     private void drawArcadeShellOutline(Rectangle bounds) {
-        shapeRenderer.setColor(PANEL_OUTLINE);
+        float pulse = (MathUtils.sin(time * 2.2f) + 1f) * 0.5f;
+
+        // Borda ciano pulsante
+        shapeRenderer.setColor(0.20f, 0.80f, 1f, 0.35f + pulse * 0.20f);
         shapeRenderer.rect(bounds.x, bounds.y, bounds.width, bounds.height);
 
-        shapeRenderer.setColor(0.10f, 0.09f, 0.16f, 0.70f);
-        shapeRenderer.rect(bounds.x + 3f, bounds.y + 3f, bounds.width - 6f, bounds.height - 6f);
+        // Borda interna escura
+        shapeRenderer.setColor(0.05f, 0.10f, 0.20f, 0.70f);
+        shapeRenderer.rect(bounds.x + 3f, bounds.y + 3f,
+            bounds.width - 6f, bounds.height - 6f);
     }
 
-    /**
-     * Draws one internal arcade box.
-     * Desenha uma caixa interna arcade.
-     */
     private void drawArcadeBox(Rectangle bounds) {
-        shapeRenderer.setColor(0.20f, 0.17f, 0.25f, 1f);
+        shapeRenderer.setColor(BOX_BG);
         shapeRenderer.rect(bounds.x, bounds.y, bounds.width, bounds.height);
 
-        shapeRenderer.setColor(0.13f, 0.12f, 0.18f, 1f);
-        shapeRenderer.rect(bounds.x + 3f, bounds.y + 3f, bounds.width - 6f, bounds.height - 6f);
+        shapeRenderer.setColor(BOX_BG_INNER);
+        shapeRenderer.rect(bounds.x + 3f, bounds.y + 3f,
+            bounds.width - 6f, bounds.height - 6f);
 
-        shapeRenderer.setColor(1f, 1f, 1f, 0.05f);
-        shapeRenderer.rect(bounds.x + 4f, bounds.y + bounds.height - 11f, bounds.width - 8f, 4f);
+        // Reflexo de vidro no topo da caixa
+        shapeRenderer.setColor(1f, 1f, 1f, 0.04f);
+        shapeRenderer.rect(bounds.x + 4f, bounds.y + bounds.height - 11f,
+            bounds.width - 8f, 4f);
     }
 
-    /**
-     * Draws the outline of one internal box.
-     * Desenha o contorno de uma caixa interna.
-     */
     private void drawArcadeBoxOutline(Rectangle bounds) {
-        shapeRenderer.setColor(BOX_OUTLINE);
+        float pulse = (MathUtils.sin(time * 2.2f) + 1f) * 0.5f;
+        shapeRenderer.setColor(BOX_OUTLINE.r, BOX_OUTLINE.g, BOX_OUTLINE.b,
+            0.50f + pulse * 0.20f);
         shapeRenderer.rect(bounds.x, bounds.y, bounds.width, bounds.height);
     }
 
     // =========================================================
-    // Previews / Previews
+    // Previews
     // =========================================================
 
-    /**
-     * Draws the hold piece preview.
-     * Desenha o preview da peça em hold.
-     */
     private void drawHoldPiecePreview(GameLayout layout, GameSession session) {
         Tetromino held = session.getHeldTetromino();
         if (held == null) return;
-
         drawPreviewPieceInBox(held, layout.holdBox, 18f);
     }
 
-    /**
-     * Draws all next queue previews.
-     * Desenha todos os previews da fila next.
-     */
     private void drawNextQueuePreviews(GameLayout layout, GameSession session) {
         Array<Tetromino> nextQueue = session.getNextQueue();
-
-        if (nextQueue.size > 0) drawPreviewPieceInBox(nextQueue.get(0), layout.nextMainBox, 18f);
+        if (nextQueue.size > 0) drawPreviewPieceInBox(nextQueue.get(0), layout.nextMainBox,  18f);
         if (nextQueue.size > 1) drawPreviewPieceInBox(nextQueue.get(1), layout.nextQueueBox1, 15f);
         if (nextQueue.size > 2) drawPreviewPieceInBox(nextQueue.get(2), layout.nextQueueBox2, 15f);
         if (nextQueue.size > 3) drawPreviewPieceInBox(nextQueue.get(3), layout.nextQueueBox3, 15f);
         if (nextQueue.size > 4) drawPreviewPieceInBox(nextQueue.get(4), layout.nextQueueBox4, 15f);
     }
 
-    /**
-     * Draws one preview piece centered inside a box.
-     * Desenha uma peça centralizada dentro de uma caixa.
-     */
     private void drawPreviewPieceInBox(Tetromino tetromino, Rectangle box, float previewCell) {
-        int[][] shape = tetromino.getCells();
-        Color color = getColorForCell(tetromino.getColorId());
+        int[][] shape  = tetromino.getCells();
+        Color   color  = getColorForCell(tetromino.getColorId());
 
-        float pieceWidth = shape[0].length * previewCell;
-        float pieceHeight = shape.length * previewCell;
-
-        float startX = box.x + (box.width - pieceWidth) / 2f;
+        float pieceWidth  = shape[0].length * previewCell;
+        float pieceHeight = shape.length    * previewCell;
+        float startX = box.x + (box.width  - pieceWidth)  / 2f;
         float startY = box.y + (box.height - pieceHeight) / 2f;
 
         for (int r = 0; r < shape.length; r++) {
             for (int c = 0; c < shape[r].length; c++) {
                 if (shape[r][c] == 0) continue;
-
                 drawPreviewBlock(
                     startX + c * previewCell + 1f,
                     startY + r * previewCell + 1f,
                     previewCell - 2f,
-                    color,
-                    1f
+                    color, 1f
                 );
             }
         }
     }
 
-    /**
-     * Draws one preview block with depth.
-     * Desenha um bloco de preview com profundidade.
-     */
-    private void drawPreviewBlock(float x, float y, float size, Color baseColor, float alpha) {
-        shapeRenderer.setColor(baseColor.r * 0.32f, baseColor.g * 0.32f, baseColor.b * 0.32f, 0.95f * alpha);
+    private void drawPreviewBlock(float x, float y, float size, Color c, float alpha) {
+        // Camadas de profundidade + glow neon
+        shapeRenderer.setColor(c.r * 0.20f, c.g * 0.20f, c.b * 0.20f, 0.95f * alpha);
         shapeRenderer.rect(x, y, size, size);
 
-        shapeRenderer.setColor(baseColor.r * 0.55f, baseColor.g * 0.55f, baseColor.b * 0.55f, 0.95f * alpha);
+        shapeRenderer.setColor(c.r * 0.45f, c.g * 0.45f, c.b * 0.45f, 0.95f * alpha);
         shapeRenderer.rect(x + 2f, y + 2f, size - 4f, size - 4f);
 
-        shapeRenderer.setColor(baseColor.r * 0.78f, baseColor.g * 0.78f, baseColor.b * 0.78f, 0.98f * alpha);
+        shapeRenderer.setColor(c.r * 0.72f, c.g * 0.72f, c.b * 0.72f, 0.98f * alpha);
         shapeRenderer.rect(x + 4f, y + 4f, size - 8f, size - 8f);
 
-        shapeRenderer.setColor(baseColor.r, baseColor.g, baseColor.b, 1f * alpha);
+        shapeRenderer.setColor(c.r, c.g, c.b, 1f * alpha);
         shapeRenderer.rect(x + 6f, y + 6f, size - 12f, size - 12f);
 
-        shapeRenderer.setColor(1f, 1f, 1f, 0.16f * alpha);
+        // Reflexo interno
+        shapeRenderer.setColor(1f, 1f, 1f, 0.18f * alpha);
         shapeRenderer.rect(x + 4f, y + size - 9f, size * 0.40f, 3f);
     }
 
     // =========================================================
-    // Text / Texto
+    // Text
     // =========================================================
 
-    /**
-     * Draws all HUD text labels and values.
-     * Desenha todos os textos e valores do HUD.
-     */
     private void drawHudText(GameLayout layout, GameSession session) {
         batch.begin();
-
         drawScore(layout, session);
         drawTopStats(layout, session);
         drawBottomLabels(layout);
         drawHints(layout);
-
         batch.end();
     }
 
-    /**
-     * Draws the score text centered in the top shell.
-     * Desenha o score centralizado no shell superior.
-     */
     private void drawScore(GameLayout layout, GameSession session) {
-        drawShadowedCenteredText(
-            "SCORE " + session.getScore(),
-            labelFont,
-            TEXT_WHITE,
-            layout.topShellBounds.x,
-            layout.topShellBounds.y + layout.topShellBounds.height - 10f,
-            layout.topShellBounds.width
-        );
+        float pulse = (MathUtils.sin(time * 4.5f) + 1f) * 0.5f;
+
+        // Score com efeito neon ciano
+        Rectangle ad = layout.topAdBounds;
+
+        neon(labelFont,
+            "SCORE  " + session.getScore(),
+            ad.x,
+            ad.y + ad.height / 2f + 8f,
+            ad.width,
+            new Color(0f, 1f, 1f, 1f),
+            new Color(0.85f, 1f, 1f, 1f),
+            0.65f + pulse * 0.28f);
     }
 
-    /**
-     * Draws hold, level and goal labels/values.
-     * Desenha os rótulos e valores de hold, level e goal.
-     */
     private void drawTopStats(GameLayout layout, GameSession session) {
-        drawShadowedCenteredText(
-            "HOLD",
-            titleFont,
-            TEXT_WHITE,
+        // HOLD label
+        drawShadowedCenteredText("HOLD", titleFont, TEXT_WHITE,
             layout.holdBox.x,
             layout.holdBox.y + layout.holdBox.height + 14f,
-            layout.holdBox.width
-        );
+            layout.holdBox.width);
 
-        drawShadowedCenteredText(
-            "LEVEL",
-            labelFont,
-            TEXT_WHITE,
+        // LEVEL label + valor
+        drawShadowedCenteredText("LEVEL", labelFont, TEXT_WHITE,
             layout.levelBox.x,
             layout.levelBox.y + layout.levelBox.height + 14f,
-            layout.levelBox.width
-        );
+            layout.levelBox.width);
 
-        drawShadowedCenteredText(
+        float lvlPulse = (MathUtils.sin(time * 3.0f) + 1f) * 0.5f;
+        neon(valueFont,
             String.valueOf(session.getLevel()),
-            valueFont,
-            TEXT_VALUE,
             layout.levelBox.x,
             layout.levelBox.y + 42f,
-            layout.levelBox.width
-        );
+            layout.levelBox.width,
+            new Color(1f, 0.85f, 0.10f, 1f),
+            new Color(1f, 1f,    0.60f, 1f),
+            0.70f + lvlPulse * 0.25f);
 
-        drawShadowedCenteredText(
-            "GOAL",
-            labelFont,
-            TEXT_WHITE,
+        // GOAL label + valor
+        drawShadowedCenteredText("GOAL", labelFont, TEXT_WHITE,
             layout.goalBox.x,
             layout.goalBox.y + layout.goalBox.height + 14f,
-            layout.goalBox.width
-        );
+            layout.goalBox.width);
 
-        drawShadowedCenteredText(
+        neon(valueFont,
             String.valueOf(session.getGoalLines()),
-            valueFont,
-            TEXT_VALUE,
             layout.goalBox.x,
             layout.goalBox.y + 42f,
-            layout.goalBox.width
-        );
+            layout.goalBox.width,
+            new Color(0.40f, 1f, 0.55f, 1f),
+            new Color(0.80f, 1f, 0.85f, 1f),
+            0.70f + lvlPulse * 0.25f);
     }
 
-    /**
-     * Draws labels for the bottom queue section.
-     * Desenha os rótulos da seção inferior da fila.
-     */
     private void drawBottomLabels(GameLayout layout) {
-        float nextRowX = layout.nextMainBox.x;
-        float nextRowWidth = (layout.nextQueueBox4.x + layout.nextQueueBox4.width) - layout.nextMainBox.x;
+        float nextRowX     = layout.nextMainBox.x;
+        float nextRowWidth = (layout.nextQueueBox4.x + layout.nextQueueBox4.width)
+            - layout.nextMainBox.x;
 
-        drawShadowedCenteredText(
-            "NEXT",
-            titleFont,
-            TEXT_WHITE,
+        drawShadowedCenteredText("NEXT", titleFont, TEXT_WHITE,
             nextRowX,
             layout.bottomShellBounds.y + layout.bottomShellBounds.height - 12f,
-            nextRowWidth
-        );
+            nextRowWidth);
     }
 
-    /**
-     * Draws control hints in the bottom shell.
-     * Desenha as dicas de controle no shell inferior.
-     */
     private void drawHints(GameLayout layout) {
         hintFont.setColor(TEXT_HINT);
-        hintFont.draw(
-            batch,
+        hintFont.draw(batch,
             "Tap rotate   Swipe move   Fling drop   Long press / C hold",
             layout.bottomShellBounds.x + 8f,
             layout.bottomShellBounds.y + 16f,
             layout.bottomShellBounds.width - 16f,
-            Align.center,
-            true
-        );
+            Align.center, true);
     }
 
+    // =========================================================
+    // Helpers
+    // =========================================================
+
     /**
-     * Draws centered text with shadow.
-     * Desenha texto centralizado com sombra.
+     * Neon text — múltiplas camadas de glow + texto principal.
      */
-    private void drawShadowedCenteredText(String text, BitmapFont font, Color color, float x, float y, float width) {
+    private void neon(BitmapFont font, String text,
+                      float x, float y, float width,
+                      Color glowColor, Color mainColor, float alpha) {
+        float gr = glowColor.r, gg = glowColor.g, gb = glowColor.b;
+        float mr = mainColor.r, mg = mainColor.g, mb = mainColor.b;
+
+        font.setColor(gr, gg, gb, alpha * 0.10f);
+        font.draw(batch, text, x,      y + 5f, width, Align.center, false);
+        font.draw(batch, text, x - 5f, y,      width, Align.center, false);
+        font.draw(batch, text, x + 5f, y,      width, Align.center, false);
+        font.draw(batch, text, x,      y - 5f, width, Align.center, false);
+
+        font.setColor(gr, gg, gb, alpha * 0.22f);
+        font.draw(batch, text, x - 2f, y,      width, Align.center, false);
+        font.draw(batch, text, x + 2f, y,      width, Align.center, false);
+        font.draw(batch, text, x,      y + 2f, width, Align.center, false);
+
+        font.setColor(gr, gg, gb, alpha * 0.45f);
+        font.draw(batch, text, x, y, width, Align.center, false);
+
+        font.setColor(mr, mg, mb, alpha);
+        font.draw(batch, text, x, y, width, Align.center, false);
+    }
+
+    private void drawShadowedCenteredText(String text, BitmapFont font, Color color,
+                                          float x, float y, float width) {
         font.setColor(TEXT_SHADOW);
         font.draw(batch, text, x + 1.5f, y - 1.5f, width, Align.center, false);
-
         font.setColor(color);
         font.draw(batch, text, x, y, width, Align.center, false);
     }
 
-    // =========================================================
-    // Helpers / Auxiliares
-    // =========================================================
-
-    /**
-     * Returns the color for a given tetromino id.
-     * Retorna a cor para um id de tetromino.
-     */
     private Color getColorForCell(int value) {
         switch (value) {
             case 1: return BLOCK_I;
@@ -444,10 +441,10 @@ public class HudRenderer {
         }
     }
 
-    /**
-     * Releases renderer and font resources.
-     * Libera os recursos de renderização e fontes.
-     */
+    // =========================================================
+    // Lifecycle
+    // =========================================================
+
     public void dispose() {
         shapeRenderer.dispose();
         batch.dispose();

@@ -26,12 +26,21 @@ public class GameLayout {
     public static final float BOARD_FRAME_PADDING = 2f;
     public static final float BOARD_INNER_PADDING = 6f;
 
+
     // =========================================================
     // Shell sizes / Tamanhos dos HUDs
     // =========================================================
-    private static final float TOP_SHELL_HEIGHT    = 120f;
-    private static final float BOTTOM_SHELL_HEIGHT = 120f;
-    private static final float SHELL_GAP           = 24f;
+    private static final float TOP_SHELL_HEIGHT      = 150f; // era 120f
+    private static final float BOTTOM_SHELL_HEIGHT   = 120f;
+    private static final float SHELL_GAP             = 24f;
+
+    // =========================================================
+    // Área de anúncio no topo
+    // =========================================================
+    private static final float TOP_AD_HEIGHT         = 40f;
+    private static final float TOP_AD_MARGIN_BOTTOM  = 6f;
+    // Faixa de anúncio
+    public final Rectangle topAdBounds = new Rectangle();
 
     // =========================================================
     // Top box layout
@@ -128,13 +137,20 @@ public class GameLayout {
 
         topShellBounds.set(0, topShellY, shellWidth, TOP_SHELL_HEIGHT);
         bottomShellBounds.set(0, bottomShellY, shellWidth, BOTTOM_SHELL_HEIGHT);
+        // Faixa de anúncio encostada no topo do shell
+        topAdBounds.set(
+            topShellBounds.x + 12f,
+            topShellBounds.y + TOP_SHELL_HEIGHT - TOP_AD_HEIGHT - 6f,
+            topShellBounds.width - 24f,
+            TOP_AD_HEIGHT
+        );
 
         // ---------------------------------------------------
         // Top boxes (HOLD / LEVEL / GOAL)
         // ---------------------------------------------------
         float topRowWidth = TOP_BOX_WIDTH * 3f + TOP_BOX_GAP * 2f;
         float topRowX     = topShellBounds.x + (topShellBounds.width - topRowWidth) / 2f;
-        float topBoxY     = topShellBounds.y + TOP_BOX_BOTTOM_MARGIN;
+        float topBoxY = topShellBounds.y + TOP_BOX_BOTTOM_MARGIN + 10f;
 
         holdBox.set(topRowX, topBoxY, TOP_BOX_WIDTH, TOP_BOX_HEIGHT);
 

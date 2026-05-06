@@ -3,6 +3,7 @@ package br.com.blockneon;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 
+import br.com.blockneon.ad.AdBridge;
 import br.com.blockneon.model.ScoreManager;
 import br.com.blockneon.screens.MainMenuScreen;
 import br.com.blockneon.ui.FontManager;
@@ -11,6 +12,12 @@ public class Main extends Game {
 
     public FontManager fontManager;
     public ScoreManager scoreManager;
+
+    public final AdBridge adBridge;
+
+    public Main(AdBridge adBridge) {
+        this.adBridge = adBridge;
+    }
 
     @Override
     public void create() {
@@ -29,3 +36,5 @@ public class Main extends Game {
         fontManager.dispose();
     }
 }
+
+

@@ -72,6 +72,7 @@ public class GameScreen implements Screen {
      */
     @Override
     public void show() {
+        ((Main) game).adBridge.showBanner();
         viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true);
         camera.update();
         layout.update(viewport.getWorldWidth(), viewport.getWorldHeight());
@@ -79,6 +80,7 @@ public class GameScreen implements Screen {
         loadAudio();
         session.resetRun();
         setupInput();
+        ((Main) game).adBridge.showBanner(); // banner aparece quando o jogo começa
     }
 
     /**
@@ -208,7 +210,7 @@ public class GameScreen implements Screen {
 
         backgroundRenderer.render(camera, layout, time, delta);
         boardRenderer.render(camera, layout, session, time);
-        hudRenderer.render(camera, layout, session);
+        hudRenderer.render(camera, layout, session, delta);
     }
 
     /**
@@ -249,16 +251,19 @@ public class GameScreen implements Screen {
 
     @Override
     public void pause() {
+        ((Main) game).adBridge.hideBanner();
         if (bgMusic != null) bgMusic.pause();
     }
 
     @Override
     public void resume() {
+        ((Main) game).adBridge.showBanner();
         if (bgMusic != null) bgMusic.play();
     }
 
     @Override
     public void hide() {
+        ((Main) game).adBridge.hideBanner();
         Gdx.input.setInputProcessor(null);
     }
 
