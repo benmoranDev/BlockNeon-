@@ -20,15 +20,11 @@ public class GameScreen implements Screen {
     // =========================================================
     // Setup / Configuração
     // =========================================================
-
     private final Game game;
-
     private final OrthographicCamera camera;
     private final ExtendViewport viewport;
-
     private final GameLayout layout;
     private final GameSession session;
-
     private final BackgroundRenderer backgroundRenderer;
     private final BoardRenderer boardRenderer;
     private final HudRenderer hudRenderer;
@@ -36,7 +32,6 @@ public class GameScreen implements Screen {
     // =========================================================
     // Audio / Áudio
     // =========================================================
-
     private Sound moveSound;
     private Sound dropSound;
     private Sound clearSound;
@@ -202,7 +197,7 @@ public class GameScreen implements Screen {
         backgroundRenderer.updateTheme(session.getScore());
 
         // ── Draw ─────────────────────────────────────────────
-        Gdx.gl.glClearColor(0.02f, 0.04f, 0.10f, 1f);
+        Gdx.gl.glClearColor(0.00f, 0.01f, 0.06f, 1f);// ── Black background
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         viewport.apply();

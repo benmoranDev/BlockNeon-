@@ -21,7 +21,7 @@ public class BackgroundRenderer {
 
     private static final Color COMBO_2 = new Color(0.20f, 1.00f, 0.60f, 1f);
     private static final Color COMBO_4 = new Color(0.20f, 0.80f, 1.00f, 1f);
-    private static final Color COMBO_6 = new Color(0.80f, 0.40f, 1.00f, 1f);
+    private static final Color COMBO_6 = new Color(0.00f, 0.70f, 1.00f, 1f); // era roxo
     private static final Color COMBO_8 = new Color(1.00f, 0.90f, 0.20f, 1f);
 
     // =========================================================
@@ -52,12 +52,6 @@ public class BackgroundRenderer {
     private final float[] starAlpha  = new float[STAR_COUNT];
     private final float[] starPhase  = new float[STAR_COUNT];
     private boolean starsInit = false;
-
-    // Montanhas em silhueta (SPACE)
-    private static final int MTN_COUNT = 7;
-    private final float[] mtnX = new float[MTN_COUNT];
-    private final float[] mtnW = new float[MTN_COUNT];
-    private final float[] mtnH = new float[MTN_COUNT];
 
     // ── NEON_CITY — prédios ───────────────────────────────────
     private static final int BUILDING_COUNT = 18;
@@ -119,18 +113,14 @@ public class BackgroundRenderer {
     public void render(OrthographicCamera camera, GameLayout layout, float time, float delta) {
         updateCombo(delta);
 
-        if (themeBlend < 1f) {
-            themeBlend = Math.min(1f, themeBlend + delta * BLEND_SPEED);
-        }
-
         shapeRenderer.setProjectionMatrix(camera.combined);
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        drawTheme(currentStyle, layout, time, 1f - themeBlend);
-        drawTheme(targetStyle,  layout, time, themeBlend);
+        drawSpace(layout, time, 1f);              // ← só isso
+        // NÃO chamar drawTheme(currentStyle/targetStyle)
         drawSharedOverlay(layout, time);
         drawComboScreenFlash(layout);
         drawBoardAmbientGlow(layout, time);
@@ -162,13 +152,9 @@ public class BackgroundRenderer {
     }
 
     // =========================================================
-    // Shared overlay — grid de pontos presente em todos os temas
+    // Shared overlay
     // =========================================================
 
-    /**
-     * Dot grid always visible on top of any theme.
-     * Grid de pontos sempre visível sobre qualquer tema.
-     */
     private void drawSharedOverlay(GameLayout layout, float time) {
         float vw      = layout.viewportWidth;
         float vh      = layout.viewportHeight;
@@ -179,11 +165,10 @@ public class BackgroundRenderer {
 
         for (float x = cellW * 0.5f; x < vw; x += cellW) {
             for (float y = cellH * 0.5f; y < vh; y += cellH) {
-                // Pontos mais intensos no centro
-                float dx = Math.abs(x - vw * 0.5f) / (vw * 0.5f);
-                float dy = Math.abs(y - vh * 0.5f) / (vh * 0.5f);
+                float dx   = Math.abs(x - vw * 0.5f) / (vw * 0.5f);
+                float dy   = Math.abs(y - vh * 0.5f) / (vh * 0.5f);
                 float dist = (float) Math.sqrt(dx * dx + dy * dy) / 1.414f;
-                float a = (0.07f + pulse * 0.04f) * (1f - dist * 0.65f);
+                float a    = (0.07f + pulse * 0.04f) * (1f - dist * 0.65f);
 
                 shapeRenderer.setColor(0.40f, 0.85f, 1f, a);
                 shapeRenderer.rect(x - dotSize * 0.5f, y - dotSize * 0.5f,
@@ -200,8 +185,6 @@ public class BackgroundRenderer {
         float vw = layout.viewportWidth;
         float vh = layout.viewportHeight;
 
-        // ── Fundo — gradiente vertical do azul profundo ao preto ──
-        // Camadas empilhadas simulam gradiente
         shapeRenderer.setColor(0.00f, 0.01f, 0.06f, alpha);
         shapeRenderer.rect(0f, 0f, vw, vh);
 
@@ -211,7 +194,7 @@ public class BackgroundRenderer {
         shapeRenderer.setColor(0.03f, 0.08f, 0.20f, alpha * 0.50f);
         shapeRenderer.rect(0f, 0f, vw, vh * 0.35f);
 
-        // ── Nebulosa — dois orbes difusos opostos ──
+        // Nebulosa — apenas azul
         float nb = (MathUtils.sin(time * 0.5f) + 1f) * 0.5f;
 
         for (int i = 6; i >= 1; i--) {
@@ -223,21 +206,19 @@ public class BackgroundRenderer {
         }
         for (int i = 6; i >= 1; i--) {
             float r = 100f * i;
-            shapeRenderer.setColor(0.55f, 0.05f, 0.50f,
+            shapeRenderer.setColor(0.05f, 0.15f, 0.55f,
                 alpha * (0.018f + nb * 0.005f) / i);
             shapeRenderer.ellipse(vw * 0.82f - r * 0.5f,
                 vh * 0.35f - r * 0.5f, r, r);
         }
 
-        // ── Estrelas com brilho variável ──
         if (!starsInit) initStars(vw, vh);
 
         for (int i = 0; i < STAR_COUNT; i++) {
             float flicker = (MathUtils.sin(time * 1.8f + starPhase[i]) + 1f) * 0.5f;
-            float a = alpha * starAlpha[i] * (0.55f + flicker * 0.45f);
+            float a  = alpha * starAlpha[i] * (0.55f + flicker * 0.45f);
             float sz = starSize[i];
 
-            // Estrelas maiores ganham um halo
             if (sz > 1.8f) {
                 shapeRenderer.setColor(0.70f, 0.88f, 1f, a * 0.25f);
                 shapeRenderer.rect(starX[i] - sz, starY[i] - sz, sz * 3f, sz * 3f);
@@ -245,9 +226,6 @@ public class BackgroundRenderer {
             shapeRenderer.setColor(0.88f, 0.94f, 1f, a);
             shapeRenderer.rect(starX[i], starY[i], sz, sz);
         }
-
-        // ── Silhueta de montanhas no rodapé ──
-        drawMountains(vw, vh, alpha);
     }
 
     private void initStars(float vw, float vh) {
@@ -261,49 +239,6 @@ public class BackgroundRenderer {
         starsInit = true;
     }
 
-    private void drawMountains(float vw, float vh, float alpha) {
-        // Duas camadas — fundos mais claros, frente mais escura
-        drawMountainLayer(vw, vh, alpha, 0.18f, 0.11f,
-            0.06f, 0.16f, 0.35f, 42);   // camada de trás
-        drawMountainLayer(vw, vh, alpha, 0.14f, 0.08f,
-            0.02f, 0.07f, 0.18f, 28);   // camada da frente
-    }
-
-    private void drawMountainLayer(float vw, float vh, float alpha,
-                                   float heightRatio, float baseRatio,
-                                   float r, float g, float b, int seed) {
-        float baseY  = vh * baseRatio;
-        float maxH   = vh * heightRatio;
-        int   peaks  = 9;
-        float stepW  = vw / (peaks - 1);
-
-        for (int i = 0; i < peaks - 1; i++) {
-            float x1  = i * stepW;
-            float x2  = (i + 1) * stepW;
-            float xm  = (x1 + x2) * 0.5f;
-            float h1  = maxH * (0.35f + 0.65f * ((MathUtils.sin(seed + i * 1.7f) + 1f) * 0.5f));
-            float h2  = maxH * (0.35f + 0.65f * ((MathUtils.sin(seed + (i + 1) * 1.7f) + 1f) * 0.5f));
-            float hm  = maxH * (0.60f + 0.40f * ((MathUtils.sin(seed + i * 2.3f + 0.8f) + 1f) * 0.5f));
-
-            shapeRenderer.setColor(r, g, b, alpha * 0.92f);
-
-            // Triângulo esquerdo do pico
-            shapeRenderer.triangle(
-                x1, baseY,
-                xm, baseY + hm,
-                x1, baseY + h1
-            );
-            // Triângulo direito do pico
-            shapeRenderer.triangle(
-                x2, baseY,
-                xm, baseY + hm,
-                x2, baseY + h2
-            );
-            // Base preenchida
-            shapeRenderer.rect(x1, 0f, stepW, baseY);
-        }
-    }
-
     // =========================================================
     // Theme: NEON CITY
     // =========================================================
@@ -312,14 +247,14 @@ public class BackgroundRenderer {
         float vw = layout.viewportWidth;
         float vh = layout.viewportHeight;
 
-        // ── Fundo — céu noturno roxo-azul ──
+        // Fundo — azul escuro apenas
         shapeRenderer.setColor(0.01f, 0.02f, 0.10f, alpha);
         shapeRenderer.rect(0f, 0f, vw, vh);
 
-        shapeRenderer.setColor(0.04f, 0.02f, 0.16f, alpha * 0.65f);
+        shapeRenderer.setColor(0.02f, 0.04f, 0.14f, alpha * 0.65f); // era roxo
         shapeRenderer.rect(0f, vh * 0.30f, vw, vh * 0.50f);
 
-        // ── Lua / sol neon ──
+        // Lua
         float moonX = vw * 0.82f;
         float moonY = vh * 0.78f;
         for (int i = 5; i >= 1; i--) {
@@ -330,14 +265,13 @@ public class BackgroundRenderer {
         shapeRenderer.setColor(1f, 0.70f, 0.30f, alpha * 0.90f);
         shapeRenderer.ellipse(moonX - 9f, moonY - 9f, 18f, 18f);
 
-        // ── Reflexo de luz no chão ──
+        // Reflexo no chão — ciano (era roxo)
         float gp = (MathUtils.sin(time * 1.4f) + 1f) * 0.5f;
-        shapeRenderer.setColor(0.70f, 0.05f, 0.80f, alpha * (0.05f + gp * 0.03f));
+        shapeRenderer.setColor(0.00f, 0.60f, 0.90f, alpha * (0.04f + gp * 0.02f)); // era roxo
         shapeRenderer.rect(0f, 0f, vw, vh * 0.16f);
         shapeRenderer.setColor(0f, 0.70f, 1f, alpha * (0.04f + gp * 0.025f));
         shapeRenderer.rect(0f, 0f, vw, vh * 0.08f);
 
-        // ── Prédios ──
         if (!buildingsInit) initBuildings(vw, vh);
 
         float pulse = (MathUtils.sin(time * 1.8f) + 1f) * 0.5f;
@@ -345,19 +279,15 @@ public class BackgroundRenderer {
         for (int i = 0; i < BUILDING_COUNT; i++) {
             Color c = buildColor[i];
 
-            // Reflexo no chão — halo suave abaixo do prédio
             shapeRenderer.setColor(c.r, c.g, c.b, alpha * 0.04f);
             shapeRenderer.rect(buildX[i] - 4f, 0f, buildW[i] + 8f, 18f);
 
-            // Corpo escuro
             shapeRenderer.setColor(c.r * 0.08f, c.g * 0.08f, c.b * 0.10f, alpha * 0.95f);
             shapeRenderer.rect(buildX[i], 0f, buildW[i], buildH[i]);
 
-            // Topo neon
             shapeRenderer.setColor(c.r, c.g, c.b, alpha * (0.55f + pulse * 0.25f));
             shapeRenderer.rect(buildX[i], buildH[i] - 2f, buildW[i], 2f);
 
-            // Linhas laterais neon
             shapeRenderer.setColor(c.r, c.g, c.b, alpha * (0.20f + pulse * 0.12f));
             shapeRenderer.rect(buildX[i], 0f, 1.5f, buildH[i]);
             shapeRenderer.rect(buildX[i] + buildW[i] - 1.5f, 0f, 1.5f, buildH[i]);
@@ -365,8 +295,8 @@ public class BackgroundRenderer {
             drawBuildingWindows(buildX[i], buildH[i], buildW[i], c, time, alpha);
         }
 
-        // ── Linha de chão neon ──
-        shapeRenderer.setColor(0.85f, 0.10f, 1.00f, alpha * (0.65f + pulse * 0.20f));
+        // Linha de chão — ciano (era roxo)
+        shapeRenderer.setColor(0.00f, 0.80f, 1.00f, alpha * (0.65f + pulse * 0.20f)); // era roxo
         shapeRenderer.rect(0f, 1f, vw, 2f);
         shapeRenderer.setColor(0f, 0.80f, 1.00f, alpha * (0.35f + pulse * 0.15f));
         shapeRenderer.rect(0f, 3f, vw, 1f);
@@ -375,8 +305,8 @@ public class BackgroundRenderer {
     private void initBuildings(float vw, float vh) {
         Color[] palette = {
             new Color(0.00f, 0.90f, 1.00f, 1f),  // ciano
-            new Color(1.00f, 0.10f, 0.85f, 1f),  // magenta
-            new Color(0.40f, 0.30f, 1.00f, 1f),  // violeta
+            new Color(0.10f, 0.60f, 1.00f, 1f),  // azul (era magenta)
+            new Color(0.20f, 0.60f, 1.00f, 1f),  // azul médio (era violeta)
             new Color(1.00f, 0.55f, 0.00f, 1f),  // laranja
             new Color(0.20f, 1.00f, 0.55f, 1f),  // verde
         };
@@ -400,13 +330,12 @@ public class BackgroundRenderer {
         for (int col = 0; col < cols; col++) {
             for (int row = 1; row <= rows; row++) {
                 float flicker = MathUtils.sin(time * 2.8f + col * 1.5f + row * 1.1f);
-                if (flicker < -0.20f) continue;  // janela apagada
+                if (flicker < -0.20f) continue;
 
                 float wx = bx + 4f + col * 11f;
                 float wy = row * 13f;
                 float wa = alpha * (0.22f + (flicker + 1f) * 0.14f);
 
-                // Janela amarelada quente
                 shapeRenderer.setColor(
                     Math.min(1f, c.r * 0.6f + 0.4f),
                     Math.min(1f, c.g * 0.4f + 0.3f),
@@ -426,13 +355,13 @@ public class BackgroundRenderer {
         float vw = layout.viewportWidth;
         float vh = layout.viewportHeight;
 
-        // ── Fundo roxo-escuro com vinheta ──
-        shapeRenderer.setColor(0.03f, 0.01f, 0.09f, alpha);
+        // Fundo — azul escuro (era roxo)
+        shapeRenderer.setColor(0.01f, 0.03f, 0.10f, alpha);
         shapeRenderer.rect(0f, 0f, vw, vh);
 
         for (int i = 4; i >= 1; i--) {
             float r = Math.min(vw, vh) * 0.55f * i;
-            shapeRenderer.setColor(0.10f, 0.04f, 0.25f, alpha * 0.08f / i);
+            shapeRenderer.setColor(0.04f, 0.12f, 0.30f, alpha * 0.08f / i); // era roxo
             shapeRenderer.ellipse(vw * 0.5f - r * 0.5f, vh * 0.5f - r * 0.5f, r, r);
         }
 
@@ -445,33 +374,29 @@ public class BackgroundRenderer {
             Color c     = shapeColor[i];
             float pulse = (MathUtils.sin(time * 2.2f + i * 0.8f) + 1f) * 0.5f;
 
-            // Halo externo difuso
             shapeRenderer.setColor(c.r, c.g, c.b, alpha * 0.03f);
             shapeRenderer.rect(cx - sz * 1.8f, cy - sz * 1.8f, sz * 3.6f, sz * 3.6f);
 
-            // Quadrado médio
             shapeRenderer.setColor(c.r, c.g, c.b, alpha * (0.06f + pulse * 0.05f));
             shapeRenderer.rect(cx - sz, cy - sz, sz * 2f, sz * 2f);
 
-            // Quadrado girado 45° simulado
             float d = sz * 0.65f;
             shapeRenderer.setColor(c.r, c.g, c.b, alpha * (0.09f + pulse * 0.07f));
             shapeRenderer.triangle(cx - d, cy, cx, cy + d, cx + d, cy);
             shapeRenderer.triangle(cx - d, cy, cx, cy - d, cx + d, cy);
 
-            // Núcleo brilhante
             shapeRenderer.setColor(c.r, c.g, c.b, alpha * (0.30f + pulse * 0.25f));
             float core = sz * 0.22f;
             shapeRenderer.rect(cx - core, cy - core, core * 2f, core * 2f);
         }
 
-        // ── Grade de linhas roxa sutil ──
-        shapeRenderer.setColor(0.45f, 0.20f, 0.90f, alpha * 0.04f);
+        // Grade — ciano (era roxo)
+        shapeRenderer.setColor(0.20f, 0.60f, 0.90f, alpha * 0.04f);
         for (float x = 0; x < vw; x += 38f) shapeRenderer.rect(x, 0f, 1f, vh);
         for (float y = 0; y < vh; y += 38f) shapeRenderer.rect(0f, y, vw, 1f);
 
-        // ── Linhas diagonais decorativas ──
-        shapeRenderer.setColor(0.60f, 0.25f, 1.00f, alpha * 0.03f);
+        // Linhas diagonais — ciano (era roxo)
+        shapeRenderer.setColor(0.15f, 0.65f, 1.00f, alpha * 0.03f);
         for (int i = -6; i < 14; i++) {
             float ox = i * (vw / 8f);
             shapeRenderer.rectLine(ox, 0f, ox + vh, vh, 1f);
@@ -480,11 +405,11 @@ public class BackgroundRenderer {
 
     private void initShapes(float vw, float vh) {
         Color[] palette = {
-            new Color(0.30f, 0.75f, 1.00f, 1f),
-            new Color(0.75f, 0.25f, 1.00f, 1f),
-            new Color(0.15f, 1.00f, 0.65f, 1f),
-            new Color(1.00f, 0.55f, 0.15f, 1f),
-            new Color(1.00f, 0.15f, 0.55f, 1f),
+            new Color(0.30f, 0.75f, 1.00f, 1f),  // azul claro
+            new Color(0.00f, 0.85f, 1.00f, 1f),  // ciano (era violeta)
+            new Color(0.15f, 1.00f, 0.65f, 1f),  // verde
+            new Color(1.00f, 0.55f, 0.15f, 1f),  // laranja
+            new Color(0.10f, 0.60f, 1.00f, 1f),  // azul médio (era magenta)
         };
 
         for (int i = 0; i < SHAPE_COUNT; i++) {
@@ -509,16 +434,16 @@ public class BackgroundRenderer {
         float shift = (MathUtils.sin(time * 0.35f) + 1f) * 0.5f;
         float wave  = (MathUtils.sin(time * 1.1f) + 1f) * 0.5f;
 
-        // ── Base — cor que cicla lentamente ──
+        // Base — azul escuro (era roxo/magenta)
         shapeRenderer.setColor(
-            0.04f + shift * 0.07f,
-            0.02f + pulse * 0.04f,
-            0.15f + shift * 0.10f,
+            0.02f + shift * 0.02f,
+            0.03f + pulse * 0.04f,
+            0.14f + shift * 0.08f,
             alpha
         );
         shapeRenderer.rect(0f, 0f, vw, vh);
 
-        // ── Faixas de aurora ──
+        // Faixas de aurora — azul/ciano (era com R alto)
         int bands = 12;
         for (int i = 0; i < bands; i++) {
             float t  = (float) i / bands;
@@ -528,39 +453,39 @@ public class BackgroundRenderer {
             float a  = alpha * 0.035f * (s + 1f);
 
             shapeRenderer.setColor(
-                0.15f + (1f - t) * 0.35f + shift * 0.20f,
-                0.05f + t * 0.15f + pulse * 0.10f,
+                0.02f + t * 0.05f + shift * 0.03f,  // R quase zero — sem roxo
+                0.10f + t * 0.20f + pulse * 0.10f,
                 0.50f + t * 0.30f + wave * 0.15f,
                 a
             );
             shapeRenderer.rect(0f, y, vw, bh);
         }
 
-        // ── Orbe central com corona ──
-        float orbX  = vw * (0.45f + shift * 0.10f);
-        float orbY  = vh * (0.42f + pulse * 0.08f);
-        float orbR  = 60f + wave * 20f;
+        // Orbe central — azul (era magenta/roxo)
+        float orbX = vw * (0.45f + shift * 0.10f);
+        float orbY = vh * (0.42f + pulse * 0.08f);
+        float orbR = 60f + wave * 20f;
 
         for (int i = 8; i >= 1; i--) {
             float r = orbR * i * 0.6f;
             shapeRenderer.setColor(
-                0.50f + shift * 0.30f,
-                0.25f + pulse * 0.20f,
+                0.10f + shift * 0.10f,  // era 0.50f + shift*0.30f → magenta
+                0.30f + pulse * 0.20f,
                 0.95f,
                 alpha * 0.018f / i
             );
             shapeRenderer.ellipse(orbX - r * 0.5f, orbY - r * 0.5f, r, r);
         }
 
-        // ── Segundo orbe menor — acento de cor ──
+        // Orbe menor — ciano/verde (era magenta)
         float orb2X = vw * (0.70f + wave * 0.08f);
         float orb2Y = vh * (0.65f + shift * 0.06f);
         for (int i = 5; i >= 1; i--) {
             float r = 35f * i;
             shapeRenderer.setColor(
-                0.80f + pulse * 0.15f,
-                0.25f,
-                0.60f + wave * 0.20f,
+                0.10f + wave * 0.10f,   // era 0.80f → magenta
+                0.50f + pulse * 0.20f,
+                0.90f + wave * 0.10f,
                 alpha * 0.020f / i
             );
             shapeRenderer.ellipse(orb2X - r * 0.5f, orb2Y - r * 0.5f, r, r);
@@ -634,7 +559,6 @@ public class BackgroundRenderer {
     private void drawBoardAmbientGlow(GameLayout layout, float time) {
         float pulse = (MathUtils.sin(time * 2.0f) + 1f) * 0.5f;
 
-        // Halo externo ciano
         shapeRenderer.setColor(0.15f, 0.85f, 1.00f, 0.03f + pulse * 0.018f);
         shapeRenderer.rect(
             layout.boardX - 30f,
@@ -643,22 +567,12 @@ public class BackgroundRenderer {
             GameLayout.BOARD_HEIGHT + 40f
         );
 
-        // Halo interno mais suave
         shapeRenderer.setColor(0.10f, 0.60f, 1.00f, 0.025f + pulse * 0.012f);
         shapeRenderer.rect(
             layout.boardX - 14f,
             layout.boardY - 10f,
             GameLayout.BOARD_WIDTH  + 28f,
             GameLayout.BOARD_HEIGHT + 20f
-        );
-
-        // Acento roxo no meio do tabuleiro
-        shapeRenderer.setColor(0.55f, 0.20f, 1.00f, 0.015f + pulse * 0.010f);
-        shapeRenderer.rect(
-            layout.boardX - 6f,
-            layout.boardY + GameLayout.BOARD_HEIGHT * 0.40f,
-            GameLayout.BOARD_WIDTH + 12f,
-            GameLayout.BOARD_HEIGHT * 0.28f
         );
     }
 
@@ -677,32 +591,26 @@ public class BackgroundRenderer {
     }
 
     private void drawGlassShell(Rectangle bounds) {
-        // Halo externo
         shapeRenderer.setColor(PANEL_GLOW);
         shapeRenderer.rect(bounds.x - 5f, bounds.y - 5f,
             bounds.width + 10f, bounds.height + 10f);
 
-        // Painel de vidro
         shapeRenderer.setColor(PANEL_GLASS);
         shapeRenderer.rect(bounds.x, bounds.y, bounds.width, bounds.height);
 
-        // Camada interna levemente mais clara
         shapeRenderer.setColor(PANEL_GLASS_INNER);
         shapeRenderer.rect(bounds.x + 3f, bounds.y + 3f,
             bounds.width - 6f, bounds.height - 6f);
 
-        // Reflexo de vidro no topo — linha branca sutil
         shapeRenderer.setColor(1f, 1f, 1f, 0.05f);
         shapeRenderer.rect(bounds.x + 6f, bounds.y + bounds.height - 8f,
             bounds.width - 12f, 2f);
     }
 
     private void drawGlassShellOutline(Rectangle bounds) {
-        // Borda ciano externa
         shapeRenderer.setColor(PANEL_OUTLINE);
         shapeRenderer.rect(bounds.x, bounds.y, bounds.width, bounds.height);
 
-        // Borda interna mais suave
         shapeRenderer.setColor(0.18f, 0.85f, 1.00f, 0.14f);
         shapeRenderer.rect(bounds.x + 2f, bounds.y + 2f,
             bounds.width - 4f, bounds.height - 4f);

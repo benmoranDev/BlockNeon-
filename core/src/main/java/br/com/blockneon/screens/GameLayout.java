@@ -113,31 +113,35 @@ public class GameLayout {
     // =========================================================
     private void updateLayout() {
 
-        // Espaço vertical extra gerado pelo ExtendViewport
-        float extraVertical = Math.max(0f, viewportHeight - WORLD_HEIGHT);
-        float extraHorizontal = Math.max(0f, viewportWidth - WORLD_WIDTH);
+        float extraVertical   = Math.max(0f, viewportHeight - WORLD_HEIGHT);
+        float extraHorizontal = Math.max(0f, viewportWidth  - WORLD_WIDTH);
 
-        // Distribui o espaço extra igualmente acima e abaixo / nos lados
         float vPad = extraVertical   / 2f;
         float hPad = extraHorizontal / 2f;
 
         // ---------------------------------------------------
-        // Tabuleiro centralizado na tela real
+        // Tabuleiro centralizado
         // ---------------------------------------------------
         boardX = hPad + (WORLD_WIDTH  - BOARD_WIDTH)  / 2f;
-        boardY = vPad + (WORLD_HEIGHT - BOARD_HEIGHT) / 2f;
+        boardY = vPad + (WORLD_HEIGHT - BOARD_HEIGHT) / 2f - 60f;
+        boardY = Math.max(boardY, BOTTOM_SHELL_HEIGHT + SHELL_GAP);
 
-        // ---------------------------------------------------
-        // Shells (HUDs) — ancorados na borda da tela real
-        // ---------------------------------------------------
         float shellWidth = viewportWidth;
 
-        float topShellY    = boardY + BOARD_HEIGHT + SHELL_GAP;
-        float bottomShellY = boardY - SHELL_GAP - BOTTOM_SHELL_HEIGHT;
-
+        // ---------------------------------------------------
+        // Shell superior — logo acima do board
+        // ---------------------------------------------------
+        float topShellY = boardY + BOARD_HEIGHT + SHELL_GAP;
         topShellBounds.set(0, topShellY, shellWidth, TOP_SHELL_HEIGHT);
-        bottomShellBounds.set(0, bottomShellY, shellWidth, BOTTOM_SHELL_HEIGHT);
-        // Faixa de anúncio encostada no topo do shell
+
+        // ---------------------------------------------------
+        // Shell inferior — ancorado na borda inferior da tela
+        // ---------------------------------------------------
+        bottomShellBounds.set(0, 0f, shellWidth, BOTTOM_SHELL_HEIGHT);
+
+        // ---------------------------------------------------
+        // Faixa de anúncio
+        // ---------------------------------------------------
         topAdBounds.set(
             topShellBounds.x + 12f,
             topShellBounds.y + TOP_SHELL_HEIGHT - TOP_AD_HEIGHT - 6f,
@@ -150,7 +154,7 @@ public class GameLayout {
         // ---------------------------------------------------
         float topRowWidth = TOP_BOX_WIDTH * 3f + TOP_BOX_GAP * 2f;
         float topRowX     = topShellBounds.x + (topShellBounds.width - topRowWidth) / 2f;
-        float topBoxY = topShellBounds.y + TOP_BOX_BOTTOM_MARGIN + 10f;
+        float topBoxY     = topShellBounds.y + TOP_BOX_BOTTOM_MARGIN + 10f;
 
         holdBox.set(topRowX, topBoxY, TOP_BOX_WIDTH, TOP_BOX_HEIGHT);
 
@@ -167,7 +171,7 @@ public class GameLayout {
         );
 
         // ---------------------------------------------------
-        // Bottom boxes (NEXT queue)
+        // Bottom boxes (NEXT queue) — relativo ao bottomShellBounds
         // ---------------------------------------------------
         float bottomRowWidth =
             NEXT_MAIN_BOX_WIDTH  + BOTTOM_BOX_GAP +
@@ -196,7 +200,7 @@ public class GameLayout {
             nextQueueBox3.x + nextQueueBox3.width + BOTTOM_BOX_GAP,
             bottomBoxY + 8f, NEXT_QUEUE_BOX_WIDTH, NEXT_QUEUE_BOX_HEIGHT);
 
-        // Compatibilidade com renderer lateral legado
+        // Compatibilidade legado
         leftShellBounds.set(topShellBounds);
         rightShellBounds.set(bottomShellBounds);
     }
