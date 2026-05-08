@@ -6,6 +6,7 @@ import com.badlogic.gdx.Gdx;
 import br.com.blockneon.ad.AdBridge;
 import br.com.blockneon.model.ScoreManager;
 import br.com.blockneon.screens.MainMenuScreen;
+import br.com.blockneon.screens.SplashScreen;
 import br.com.blockneon.ui.FontManager;
 
 public class Main extends Game {
@@ -28,7 +29,8 @@ public class Main extends Game {
         fontManager  = new FontManager(w, h);
         scoreManager = new ScoreManager();
 
-        setScreen(new MainMenuScreen(this));
+        // DEPOIS – começa pela splash
+        setScreen(new SplashScreen(this));
     }
 
     @Override
