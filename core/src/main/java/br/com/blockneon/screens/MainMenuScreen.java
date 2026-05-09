@@ -187,6 +187,8 @@ public class MainMenuScreen implements Screen {
 
     @Override
     public void render(float delta) {
+        // Limitar a 30 FPS
+        delta = Math.min(delta, 1f / 30f);
         time += delta;
 
         handleInput();

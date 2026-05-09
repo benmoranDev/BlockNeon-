@@ -11,7 +11,7 @@ import br.com.blockneon.ui.FontManager;
 
 public class Main extends Game {
 
-    public FontManager fontManager;
+    public FontManager  fontManager;
     public ScoreManager scoreManager;
 
     public final AdBridge adBridge;
@@ -23,13 +23,18 @@ public class Main extends Game {
     @Override
     public void create() {
 
+        // ── Resolução real do dispositivo ────────────────────
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
 
+        // ── Sistemas globais ─────────────────────────────────
         fontManager  = new FontManager(w, h);
         scoreManager = new ScoreManager();
 
-        // DEPOIS – começa pela splash
+        // ── Target de FPS ────────────────────────────────────
+        Gdx.graphics.setForegroundFPS(60);
+
+        // ── Tela inicial ─────────────────────────────────────
         setScreen(new SplashScreen(this));
     }
 
@@ -38,5 +43,4 @@ public class Main extends Game {
         fontManager.dispose();
     }
 }
-
 

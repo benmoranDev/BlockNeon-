@@ -20,13 +20,13 @@ public class HudRenderer {
     // Panel palette — neon
     // =========================================================
 
-    private static final Color PANEL_OUTER      = new Color(0.04f, 0.10f, 0.20f, 1f);
-    private static final Color PANEL_INNER      = new Color(0.02f, 0.06f, 0.14f, 1f);
-    private static final Color PANEL_HIGHLIGHT  = new Color(1f,    1f,    1f,    0.05f);
-    private static final Color PANEL_OUTLINE    = new Color(0.20f, 0.80f, 1.00f, 0.55f);
-    private static final Color BOX_OUTLINE      = new Color(0.18f, 0.70f, 0.90f, 0.70f);
-    private static final Color BOX_BG           = new Color(0.03f, 0.08f, 0.16f, 1f);
-    private static final Color BOX_BG_INNER     = new Color(0.02f, 0.05f, 0.10f, 1f);
+    private static final Color PANEL_OUTER     = new Color(0.04f, 0.10f, 0.20f, 1f);
+    private static final Color PANEL_INNER     = new Color(0.02f, 0.06f, 0.14f, 1f);
+    private static final Color PANEL_HIGHLIGHT = new Color(1f,    1f,    1f,    0.05f);
+    private static final Color PANEL_OUTLINE   = new Color(0.20f, 0.80f, 1.00f, 0.55f);
+    private static final Color BOX_OUTLINE     = new Color(0.18f, 0.70f, 0.90f, 0.70f);
+    private static final Color BOX_BG          = new Color(0.03f, 0.08f, 0.16f, 1f);
+    private static final Color BOX_BG_INNER    = new Color(0.02f, 0.05f, 0.10f, 1f);
 
     // =========================================================
     // Piece palette
@@ -44,10 +44,9 @@ public class HudRenderer {
     // Text colors
     // =========================================================
 
-    private static final Color TEXT_WHITE  = new Color(1f,    1f,    1f,    1f);
-    private static final Color TEXT_HINT   = new Color(1f,    1f,    1f,    0.38f);
-    private static final Color TEXT_SHADOW = new Color(0f,    0f,    0f,    0.50f);
-    private static final Color TEXT_VALUE  = new Color(1f,    0.85f, 0.20f, 1f);
+    private static final Color TEXT_WHITE  = new Color(1f, 1f, 1f, 1f);
+    private static final Color TEXT_HINT   = new Color(1f, 1f, 1f, 0.38f);
+    private static final Color TEXT_SHADOW = new Color(0f, 0f, 0f, 0.50f);
 
     // =========================================================
     // Rendering
@@ -96,12 +95,10 @@ public class HudRenderer {
     // Public render
     // =========================================================
 
-    /**
-     * Renders the whole HUD layer.
-     * Renderiza toda a camada de HUD.
-     */
     public void render(OrthographicCamera camera, GameLayout layout,
                        GameSession session, float delta) {
+
+        delta = Math.min(delta, 1f / 30f);
         time += delta;
 
         shapeRenderer.setProjectionMatrix(camera.combined);
@@ -110,18 +107,27 @@ public class HudRenderer {
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
-        // ── Passe 1: painéis + caixas (Filled) ───────────────
+        // ── Passe 1: Filled ───────────────────────────────────
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         drawTopBottomPanels(layout);
         drawTopAdBar(layout);
         drawTopBottomBoxes(layout);
+
+        // Scanline individual em cada caixa NEXT
+        drawNextBoxScanline(layout.nextMainBox);
+        drawNextBoxScanline(layout.nextQueueBox1);
+        drawNextBoxScanline(layout.nextQueueBox2);
+        drawNextBoxScanline(layout.nextQueueBox3);
+        drawNextBoxScanline(layout.nextQueueBox4);
+
         drawHoldPiecePreview(layout, session);
         drawNextQueuePreviews(layout, session);
         shapeRenderer.end();
 
-        // ── Passe 2: contornos (Line) ─────────────────────────
+        // ── Passe 2: Line ─────────────────────────────────────
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         drawTopBottomPanelOutlines(layout);
+        drawTopAdBarOutline(layout.topAdBounds);  // ← contorno neon da barra
         drawTopBottomBoxOutlines(layout);
         shapeRenderer.end();
 
@@ -139,22 +145,30 @@ public class HudRenderer {
         drawArcadeShell(layout.bottomShellBounds);
     }
 
-    // Barra de anúncio superior
     private void drawTopAdBar(GameLayout layout) {
         Rectangle ad = layout.topAdBounds;
 
-        // Fundo da barra
+        // Fundo escuro da barra — sem nenhuma linha
         shapeRenderer.setColor(0.03f, 0.08f, 0.18f, 1f);
         shapeRenderer.rect(ad.x, ad.y, ad.width, ad.height);
 
-        // Linha de destaque inferior
-        shapeRenderer.setColor(0.20f, 0.80f, 1f, 0.35f);
-        shapeRenderer.rect(ad.x, ad.y, ad.width, 2f);
-
-        // Glow levinho
+        // Glow externo suave pulsante
         float pulse = (MathUtils.sin(time * 2.8f) + 1f) * 0.5f;
-        shapeRenderer.setColor(0.20f, 0.80f, 1f, 0.05f + pulse * 0.04f);
+        shapeRenderer.setColor(0.20f, 0.80f, 1f, 0.04f + pulse * 0.03f);
         shapeRenderer.rect(ad.x - 2f, ad.y - 2f, ad.width + 4f, ad.height + 4f);
+    }
+
+    // Contorno neon elegante da barra de score — apenas no Passe 2 (Line)
+    private void drawTopAdBarOutline(Rectangle ad) {
+        float pulse = (MathUtils.sin(time * 2.8f) + 1f) * 0.5f;
+
+        // Contorno externo — ciano moderado pulsante
+        shapeRenderer.setColor(0.20f, 0.85f, 1f, 0.45f + pulse * 0.20f);
+        shapeRenderer.rect(ad.x, ad.y, ad.width, ad.height);
+
+        // Contorno interno — linha de energia mais fina e sutil
+        shapeRenderer.setColor(0.40f, 1f, 1f, 0.20f + pulse * 0.12f);
+        shapeRenderer.rect(ad.x + 2f, ad.y + 2f, ad.width - 4f, ad.height - 4f);
     }
 
     private void drawTopBottomPanelOutlines(GameLayout layout) {
@@ -199,11 +213,18 @@ public class HudRenderer {
         shapeRenderer.rect(bounds.x + 6f, bounds.y + bounds.height - 16f,
             bounds.width - 12f, 7f);
 
-        // Glow pulsante na borda superior do painel
+        // Glow suave em 2 camadas
         float pulse = (MathUtils.sin(time * 2.2f) + 1f) * 0.5f;
-        shapeRenderer.setColor(0.20f, 0.80f, 1f, 0.04f + pulse * 0.04f);
-        shapeRenderer.rect(bounds.x - 2f, bounds.y - 2f,
-            bounds.width + 4f, bounds.height + 4f);
+
+        // Halo largo, bem fraco
+        shapeRenderer.setColor(0.20f, 0.80f, 1f, 0.02f + pulse * 0.02f);
+        shapeRenderer.rect(bounds.x - 6f, bounds.y - 6f,
+            bounds.width + 12f, bounds.height + 12f);
+
+        // Halo mais perto, um pouco mais forte
+        shapeRenderer.setColor(0.20f, 0.90f, 1f, 0.03f + pulse * 0.03f);
+        shapeRenderer.rect(bounds.x - 3f, bounds.y - 3f,
+            bounds.width + 6f, bounds.height + 6f);
     }
 
     private void drawArcadeShellOutline(Rectangle bounds) {
@@ -227,17 +248,53 @@ public class HudRenderer {
         shapeRenderer.rect(bounds.x + 3f, bounds.y + 3f,
             bounds.width - 6f, bounds.height - 6f);
 
-        // Reflexo de vidro no topo da caixa
+        // Reflexo de vidro no topo
         shapeRenderer.setColor(1f, 1f, 1f, 0.04f);
         shapeRenderer.rect(bounds.x + 4f, bounds.y + bounds.height - 11f,
             bounds.width - 8f, 4f);
+
+        // Glow extra só na borda superior
+        float pulse = (MathUtils.sin(time * 2.0f) + 1f) * 0.5f;
+        shapeRenderer.setColor(0.30f, 0.95f, 1f, 0.03f + pulse * 0.03f);
+        shapeRenderer.rect(bounds.x - 2f, bounds.y + bounds.height - 3f,
+            bounds.width + 4f, 3f);
     }
 
+    // Borda respirando — glow duplo pulsante
     private void drawArcadeBoxOutline(Rectangle bounds) {
-        float pulse = (MathUtils.sin(time * 2.2f) + 1f) * 0.5f;
-        shapeRenderer.setColor(BOX_OUTLINE.r, BOX_OUTLINE.g, BOX_OUTLINE.b,
-            0.50f + pulse * 0.20f);
+        float t     = (MathUtils.sin(time * 1.6f) + 1f) * 0.5f;
+        float alpha = 0.35f + t * 0.25f;
+
+        shapeRenderer.setColor(BOX_OUTLINE.r, BOX_OUTLINE.g, BOX_OUTLINE.b, alpha);
         shapeRenderer.rect(bounds.x, bounds.y, bounds.width, bounds.height);
+
+        // Linha de energia interna
+        shapeRenderer.setColor(0.35f, 0.95f, 1f, 0.08f + t * 0.10f);
+        shapeRenderer.rect(bounds.x + 1.5f, bounds.y + 1.5f,
+            bounds.width - 3f, bounds.height - 3f);
+    }
+
+    // =========================================================
+    // Efeitos de Animação Neon
+    // =========================================================
+
+    private void drawNextBoxScanline(Rectangle box) {
+        float period = 2.6f;
+        float t      = (time % period) / period;
+
+        float lineY = box.y + t * box.height;
+
+        // Linha principal
+        shapeRenderer.setColor(0.30f, 0.95f, 1f, 0.22f);
+        shapeRenderer.rect(box.x, lineY, box.width, 2f);
+
+        // Cauda de fade acima
+        shapeRenderer.setColor(0.15f, 0.70f, 1f, 0.10f);
+        shapeRenderer.rect(box.x, lineY + 2f, box.width, 4f);
+
+        // Brilho mínimo abaixo
+        shapeRenderer.setColor(0.50f, 1f, 1f, 0.08f);
+        shapeRenderer.rect(box.x, lineY - 1f, box.width, 1f);
     }
 
     // =========================================================
@@ -247,42 +304,71 @@ public class HudRenderer {
     private void drawHoldPiecePreview(GameLayout layout, GameSession session) {
         Tetromino held = session.getHeldTetromino();
         if (held == null) return;
-        drawPreviewPieceInBox(held, layout.holdBox, 18f);
+
+        float alpha = session.isHoldUsedThisTurn() ? 0.38f : 1f;
+        drawPreviewPieceInBox(held, layout.holdBox, 18f, alpha);
     }
 
     private void drawNextQueuePreviews(GameLayout layout, GameSession session) {
         Array<Tetromino> nextQueue = session.getNextQueue();
-        if (nextQueue.size > 0) drawPreviewPieceInBox(nextQueue.get(0), layout.nextMainBox,  18f);
-        if (nextQueue.size > 1) drawPreviewPieceInBox(nextQueue.get(1), layout.nextQueueBox1, 15f);
-        if (nextQueue.size > 2) drawPreviewPieceInBox(nextQueue.get(2), layout.nextQueueBox2, 15f);
-        if (nextQueue.size > 3) drawPreviewPieceInBox(nextQueue.get(3), layout.nextQueueBox3, 15f);
-        if (nextQueue.size > 4) drawPreviewPieceInBox(nextQueue.get(4), layout.nextQueueBox4, 15f);
+        float mainSize  = 20f;
+        float queueSize = 16f;
+
+        if (nextQueue.size > 0) drawPreviewPieceInBox(nextQueue.get(0), layout.nextMainBox,   mainSize,  1.00f);
+        if (nextQueue.size > 1) drawPreviewPieceInBox(nextQueue.get(1), layout.nextQueueBox1, queueSize, 0.85f);
+        if (nextQueue.size > 2) drawPreviewPieceInBox(nextQueue.get(2), layout.nextQueueBox2, queueSize, 0.70f);
+        if (nextQueue.size > 3) drawPreviewPieceInBox(nextQueue.get(3), layout.nextQueueBox3, queueSize, 0.55f);
+        if (nextQueue.size > 4) drawPreviewPieceInBox(nextQueue.get(4), layout.nextQueueBox4, queueSize, 0.40f);
     }
 
-    private void drawPreviewPieceInBox(Tetromino tetromino, Rectangle box, float previewCell) {
-        int[][] shape  = tetromino.getCells();
-        Color   color  = getColorForCell(tetromino.getColorId());
+    private void drawPreviewPieceInBox(Tetromino tetromino, Rectangle box,
+                                       float previewCell, float alpha) {
+        int[][] shape = tetromino.getCells();
+        Color   color = getColorForCell(tetromino.getColorId());
 
-        float pieceWidth  = shape[0].length * previewCell;
-        float pieceHeight = shape.length    * previewCell;
-        float startX = box.x + (box.width  - pieceWidth)  / 2f;
-        float startY = box.y + (box.height - pieceHeight) / 2f;
+        int minR = shape.length,    maxR = -1;
+        int minC = shape[0].length, maxC = -1;
 
         for (int r = 0; r < shape.length; r++) {
             for (int c = 0; c < shape[r].length; c++) {
+                if (shape[r][c] != 0) {
+                    if (r < minR) minR = r;
+                    if (r > maxR) maxR = r;
+                    if (c < minC) minC = c;
+                    if (c > maxC) maxC = c;
+                }
+            }
+        }
+
+        int cellsW = maxC - minC + 1;
+        int cellsH = maxR - minR + 1;
+
+        float margin = 4f;
+        float maxW   = box.width  - margin * 2f;
+        float maxH   = box.height - margin * 2f;
+
+        float scaleX = maxW / (cellsW * previewCell);
+        float scaleY = maxH / (cellsH * previewCell);
+        float scale  = Math.min(1f, Math.min(scaleX, scaleY));
+
+        float cell   = previewCell * scale;
+        float pieceW = cellsW * cell;
+        float pieceH = cellsH * cell;
+
+        float startX = box.x + (box.width  - pieceW) / 2f;
+        float startY = box.y + (box.height - pieceH) / 2f;
+
+        for (int r = minR; r <= maxR; r++) {
+            for (int c = minC; c <= maxC; c++) {
                 if (shape[r][c] == 0) continue;
-                drawPreviewBlock(
-                    startX + c * previewCell + 1f,
-                    startY + r * previewCell + 1f,
-                    previewCell - 2f,
-                    color, 1f
-                );
+                float x = startX + (c - minC) * cell + 1f;
+                float y = startY + (r - minR) * cell + 1f;
+                drawPreviewBlock(x, y, cell - 2f, color, alpha);
             }
         }
     }
 
     private void drawPreviewBlock(float x, float y, float size, Color c, float alpha) {
-        // Camadas de profundidade + glow neon
         shapeRenderer.setColor(c.r * 0.20f, c.g * 0.20f, c.b * 0.20f, 0.95f * alpha);
         shapeRenderer.rect(x, y, size, size);
 
@@ -292,10 +378,9 @@ public class HudRenderer {
         shapeRenderer.setColor(c.r * 0.72f, c.g * 0.72f, c.b * 0.72f, 0.98f * alpha);
         shapeRenderer.rect(x + 4f, y + 4f, size - 8f, size - 8f);
 
-        shapeRenderer.setColor(c.r, c.g, c.b, 1f * alpha);
+        shapeRenderer.setColor(c.r, c.g, c.b, alpha);
         shapeRenderer.rect(x + 6f, y + 6f, size - 12f, size - 12f);
 
-        // Reflexo interno
         shapeRenderer.setColor(1f, 1f, 1f, 0.18f * alpha);
         shapeRenderer.rect(x + 4f, y + size - 9f, size * 0.40f, 3f);
     }
@@ -314,29 +399,33 @@ public class HudRenderer {
     }
 
     private void drawScore(GameLayout layout, GameSession session) {
-        float pulse = (MathUtils.sin(time * 4.5f) + 1f) * 0.5f;
+        Rectangle ad    = layout.topAdBounds;
+        float     baseY = ad.y + ad.height / 2f + 8f;
 
-        // Score com efeito neon ciano
-        Rectangle ad = layout.topAdBounds;
+        String text  = "SCORE  " + session.getScore();
+        float  pulse = (MathUtils.sin(time * 4.5f) + 1f) * 0.5f;
+        float  alpha = 0.65f + pulse * 0.28f;
 
-        neon(labelFont,
-            "SCORE  " + session.getScore(),
-            ad.x,
-            ad.y + ad.height / 2f + 8f,
-            ad.width,
+        neon(labelFont, text, ad.x, baseY, ad.width,
             new Color(0f, 1f, 1f, 1f),
             new Color(0.85f, 1f, 1f, 1f),
-            0.65f + pulse * 0.28f);
+            alpha);
+
+        // Faixa de brilho deslizante sutil
+        float offset = MathUtils.sin(time * 2.4f) * 4f;
+        labelFont.setColor(1f, 1f, 1f, 0.20f);
+        labelFont.draw(batch, text, ad.x, baseY + offset,
+            ad.width, Align.center, false);
     }
 
     private void drawTopStats(GameLayout layout, GameSession session) {
-        // HOLD label
+        // HOLD
         drawShadowedCenteredText("HOLD", titleFont, TEXT_WHITE,
             layout.holdBox.x,
             layout.holdBox.y + layout.holdBox.height + 14f,
             layout.holdBox.width);
 
-        // LEVEL label + valor
+        // LEVEL
         drawShadowedCenteredText("LEVEL", labelFont, TEXT_WHITE,
             layout.levelBox.x,
             layout.levelBox.y + layout.levelBox.height + 14f,
@@ -352,7 +441,7 @@ public class HudRenderer {
             new Color(1f, 1f,    0.60f, 1f),
             0.70f + lvlPulse * 0.25f);
 
-        // GOAL label + valor
+        // GOAL
         drawShadowedCenteredText("GOAL", labelFont, TEXT_WHITE,
             layout.goalBox.x,
             layout.goalBox.y + layout.goalBox.height + 14f,
@@ -393,9 +482,6 @@ public class HudRenderer {
     // Helpers
     // =========================================================
 
-    /**
-     * Neon text — múltiplas camadas de glow + texto principal.
-     */
     private void neon(BitmapFont font, String text,
                       float x, float y, float width,
                       Color glowColor, Color mainColor, float alpha) {

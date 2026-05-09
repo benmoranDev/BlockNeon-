@@ -107,6 +107,8 @@ public class SplashScreen implements Screen {
 
     @Override
     public void render(float delta) {
+        // Limite de FPS
+        delta = Math.min(delta, 1f / 30f);
         time += delta;
 
         // Pula para o menu com toque/tecla

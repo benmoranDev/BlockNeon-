@@ -263,6 +263,7 @@ public class GameOverScreen implements Screen {
 
     @Override
     public void render(float delta) {
+        delta = Math.min(delta, 1f / 30f);
         time += delta;
 
         updateFade(delta);
@@ -284,10 +285,7 @@ public class GameOverScreen implements Screen {
 
         // ── Passe 1: fundo + blocos filled ───────────────────
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        drawSpaceBackground();
-        drawStars();
-        drawMountains();
-        drawDotGrid();
+        drawSpaceBackground();   // ← substitui drawStars/drawMountains/drawDotGrid
         drawParticles();
         drawBlocksFilled();
         shapeRenderer.end();
@@ -403,6 +401,35 @@ public class GameOverScreen implements Screen {
             shapeRenderer.rect(pX[i] - s * 0.5f, pY[i] - s * 0.5f, s, s);
         }
     }
+    // =========================================================
+    // Desenha um contorno em arco-íris em volta de um retângulo.
+    // =========================================================
+    private void drawRainbowPanelOutline(Rectangle r, float time, float alphaBase) {
+        int layers = 6;
+        float thickness = 1.5f;
+
+        for (int i = 0; i < layers; i++) {
+            float t = (float) i / (layers - 1);
+            float phase = time * 0.8f + t * MathUtils.PI2;
+
+            // arco-íris em HSV / HSL aproximado
+            float h = (phase / MathUtils.PI2) % 1f; // 0..1
+            float rCol = MathUtils.clamp(Math.abs(h * 6f - 3f) - 1f, 0f, 1f);
+            float gCol = MathUtils.clamp(2f - Math.abs(h * 6f - 2f), 0f, 1f);
+            float bCol = MathUtils.clamp(2f - Math.abs(h * 6f - 4f), 0f, 1f);
+
+            float a = alphaBase * (0.4f + 0.6f * (1f - t)); // mais forte perto da borda interna
+
+            shapeRenderer.setColor(rCol, gCol, bCol, a);
+            float inset = i * thickness;
+            shapeRenderer.rect(
+                r.x - inset,
+                r.y - inset,
+                r.width  + inset * 2f,
+                r.height + inset * 2f
+            );
+        }
+    }
 
     // =========================================================
     // Blocos neon
@@ -464,66 +491,22 @@ public class GameOverScreen implements Screen {
     // =========================================================
 
     private void drawSpaceBackground() {
-        float t  = (MathUtils.sin(time * 0.35f) + 1f) * 0.5f;
-        float nb = (MathUtils.sin(time * 0.50f) + 1f) * 0.5f;
-
-        Color topA = lerpColor(
-            new Color(0.01f, 0.02f, 0.10f, 1f),
-            new Color(0.07f, 0.01f, 0.13f, 1f),
-            mood);
-        Color topB = lerpColor(
-            new Color(0.02f, 0.04f, 0.14f, 1f),
-            new Color(0.10f, 0.02f, 0.18f, 1f),
-            mood);
-
-        Color midA = lerpColor(
-            new Color(0.02f, 0.06f, 0.18f, 1f),
-            new Color(0.09f, 0.02f, 0.20f, 1f),
-            mood);
-        Color midB = lerpColor(
-            new Color(0.03f, 0.09f, 0.22f, 1f),
-            new Color(0.12f, 0.03f, 0.22f, 1f),
-            mood);
-
-        Color botA = lerpColor(
-            new Color(0.03f, 0.07f, 0.16f, 1f),
-            new Color(0.08f, 0.02f, 0.14f, 1f),
-            mood);
-        Color botB = lerpColor(
-            new Color(0.04f, 0.09f, 0.20f, 1f),
-            new Color(0.10f, 0.03f, 0.16f, 1f),
-            mood);
-
-        Color top = new Color(topA).lerp(topB, t);
-        Color mid = new Color(midA).lerp(midB, t);
-        Color bot = new Color(botA).lerp(botB, t);
-
-        shapeRenderer.setColor(bot);
-        shapeRenderer.rect(0f, 0f,         vw, vh * 0.32f);
-        shapeRenderer.setColor(mid);
-        shapeRenderer.rect(0f, vh * 0.32f, vw, vh * 0.28f);
-        shapeRenderer.setColor(top);
-        shapeRenderer.rect(0f, vh * 0.60f, vw, vh * 0.40f);
-
-        // Nebulosa esquerda: frio → ciano; épico → vermelho
-        float nR1 = MathUtils.lerp(0.10f, 0.85f, mood);
-        float nG1 = MathUtils.lerp(0.60f, 0.15f, mood);
-        float nB1 = MathUtils.lerp(0.70f, 0.10f, mood);
-        for (int i = 6; i >= 1; i--) {
-            float r = 120f * i;
-            shapeRenderer.setColor(nR1, nG1, nB1, (0.024f + nb * 0.007f) / i);
-            shapeRenderer.ellipse(vw * 0.18f - r * 0.5f, vh * 0.62f - r * 0.5f, r, r);
+        // Gradiente em faixas — igual à SplashScreen
+        int bands = 16;
+        for (int i = 0; i < bands; i++) {
+            float t     = (float) i / (bands - 1);
+            float curve = (float) Math.pow(1f - t, 2f);
+            float bandH = vh / bands + 1f;
+            float bandY = i * (vh / bands);
+            shapeRenderer.setColor(0.01f, 0.03f + curve * 0.10f, 0.05f + curve * 0.22f, 1f);
+            shapeRenderer.rect(0, bandY, vw, bandH);
         }
 
-        // Nebulosa direita: frio → azul; épico → magenta forte
-        float nR2 = MathUtils.lerp(0.20f, 0.90f, mood);
-        float nG2 = MathUtils.lerp(0.30f, 0.10f, mood);
-        float nB2 = MathUtils.lerp(0.90f, 0.80f, mood);
-        for (int i = 6; i >= 1; i--) {
-            float r = 100f * i;
-            shapeRenderer.setColor(nR2, nG2, nB2, (0.020f + nb * 0.006f) / i);
-            shapeRenderer.ellipse(vw * 0.78f - r * 0.5f, vh * 0.30f - r * 0.5f, r, r);
-        }
+        // Halo central difuso pulsante — igual à SplashScreen
+        float pulse = (MathUtils.sin(time * 1.8f) + 1f) * 0.5f;
+        float hR    = vw * 0.70f;
+        shapeRenderer.setColor(0.04f, 0.18f, 0.55f, 0.06f + pulse * 0.03f);
+        shapeRenderer.ellipse(vw / 2f - hR / 2f, vh / 2f - hR / 2f, hR, hR);
     }
 
     private void drawStars() {
@@ -654,21 +637,58 @@ public class GameOverScreen implements Screen {
     private void drawPanelOutlines() {
         float pulse = (MathUtils.sin(time * 2.4f) + 1f) * 0.5f;
 
-        // Borda principal: vermelho → magenta conforme mood
-        float br = MathUtils.lerp(0.75f, 1.00f, mood);
-        float bg = MathUtils.lerp(0.15f, 0.05f, mood);
-        float bb = MathUtils.lerp(0.20f, 0.40f, mood);
-        shapeRenderer.setColor(br, bg, bb, 0.24f + pulse * 0.18f);
-        shapeRenderer.rect(panelBounds.x, panelBounds.y,
-            panelBounds.width, panelBounds.height);
+        // Arco‑íris externo pulsante
+        float alphaBase = 0.20f + pulse * 0.18f;
+        drawRainbowPanelOutline(panelBounds, time, alphaBase);
 
-        // Borda interna ciano
-        shapeRenderer.setColor(PANEL_OUTLINE.r, PANEL_OUTLINE.g, PANEL_OUTLINE.b, 0.20f);
+        // Borda interna ciano mais forte para “segurar” o painel
+        shapeRenderer.setColor(PANEL_OUTLINE.r, PANEL_OUTLINE.g, PANEL_OUTLINE.b, 0.45f);
         shapeRenderer.rect(
             panelBounds.x + 4f, panelBounds.y + 4f,
-            panelBounds.width - 8f, panelBounds.height - 8f);
+            panelBounds.width - 8f, panelBounds.height - 8f
+        );
     }
 
+    // =========================================================
+    // Neon com múltiplas cores (efeito arco‑íris) + texto principal.
+    // =========================================================
+    private void neon(BitmapFont font, String text,
+                      float x, float y, float width,
+                      Color mainColor, float alpha) {
+
+        float baseHue = (time * 0.5f) % MathUtils.PI2; // gira devagar ao longo do tempo
+
+        // offsets radiais
+        float[] offsets = { 5f, 3f, 1.5f };
+        for (int i = 0; i < offsets.length; i++) {
+            float off = offsets[i];
+
+            // calculamos uma cor diferente para cada camada
+            float t = (float) i / (offsets.length - 1);
+            float phase = baseHue + t * MathUtils.PI2 / 3f;
+
+            float h = (phase / MathUtils.PI2) % 1f;
+            float rCol = MathUtils.clamp(Math.abs(h * 6f - 3f) - 1f, 0f, 1f);
+            float gCol = MathUtils.clamp(2f - Math.abs(h * 6f - 2f), 0f, 1f);
+            float bCol = MathUtils.clamp(2f - Math.abs(h * 6f - 4f), 0f, 1f);
+
+            float a = alpha * (0.18f + 0.22f * (1f - t));
+
+            font.setColor(rCol, gCol, bCol, a);
+            font.draw(batch, text, x,      y + off, width, Align.center, false);
+            font.draw(batch, text, x - off, y,      width, Align.center, false);
+            font.draw(batch, text, x + off, y,      width, Align.center, false);
+            font.draw(batch, text, x,      y - off, width, Align.center, false);
+        }
+
+        // Glow mais próximo, fixo em torno da cor principal
+        font.setColor(mainColor.r, mainColor.g, mainColor.b, alpha * 0.7f);
+        font.draw(batch, text, x, y, width, Align.center, false);
+
+        // Texto principal sólido
+        font.setColor(mainColor.r, mainColor.g, mainColor.b, alpha);
+        font.draw(batch, text, x, y, width, Align.center, false);
+    }
     // =========================================================
     // Draw — botões
     // =========================================================
@@ -722,83 +742,98 @@ public class GameOverScreen implements Screen {
     // =========================================================
 
     private void drawTexts() {
-        float pulse = (MathUtils.sin(time * 4.5f) + 1f) * 0.5f;
+        float pulse  = (MathUtils.sin(time * 3.2f) + 1f) * 0.5f;   // mais lento e suave
+        float pulseB = (MathUtils.sin(time * 3.2f + MathUtils.PI) + 1f) * 0.5f; // fase oposta
 
         batch.begin();
 
-        // GAME / OVER
+        // ── GAME / OVER ───────────────────────────────────────────
         float titleY = panelBounds.y + panelBounds.height - 24f;
+
+        // "GAME" — vermelho frio quase rosa, elegante
         neon(titleFont, "GAME",
             0f, titleY, vw,
-            new Color(1f, 0.08f, 0.18f, 1f),
-            new Color(1f, 0.60f, 0.65f, 1f),
-            0.70f + pulse * 0.28f);
+            new Color(2f, 0.52f, 0.45f, 1f),
+            0.75f + pulse * 0.22f);
+
+        // "OVER" — fase oposta cria alternância suave
         neon(titleFont, "OVER",
             0f, titleY - 46f, vw,
-            new Color(1f, 0.08f, 0.30f, 1f),
-            new Color(1f, 0.65f, 0.85f, 1f),
-            0.70f + (1f - pulse) * 0.28f);
+            new Color(1f, 0.05f, 0.22f, 1f),
+            new Color(1f, 0.60f, 0.72f, 1f),
+            0.75f + pulseB * 0.22f);
 
-        // SCORE label
+        // ── SCORE label ───────────────────────────────────────────
         float scoreLabelY = panelBounds.y + panelBounds.height - 132f;
+        float scorePulse  = (MathUtils.sin(time * 2.0f) + 1f) * 0.5f;
+
         neon(labelFont, "SCORE",
             0f, scoreLabelY, vw,
-            new Color(0f,    1f,    1f, 1f),
-            new Color(0.70f, 0.92f, 1f, 1f),
-            0.55f + (MathUtils.sin(time * 2.2f) + 1f) * 0.18f);
+            new Color(0f,    0.90f, 1f, 1f),
+            new Color(0.75f, 0.96f, 1f, 1f),
+            0.50f + scorePulse * 0.22f);
 
-        // SCORE value
+        // ── SCORE value ───────────────────────────────────────────
         float  scoreY   = scoreLabelY - 52f;
         String scoreStr = String.valueOf((int) scoreDisplay);
+
+        // Contado: ciano gelado. Contando: dourado pulsante
+        Color scoreGlow = scoreCounted
+            ? new Color(0f,    0.95f, 1f,    1f)
+            : new Color(1f,    0.80f, 0f,    1f);
+        Color scoreMain = scoreCounted
+            ? new Color(0.88f, 1f,    1f,    1f)
+            : new Color(1f,    0.96f, 0.55f, 1f);
+
         neon(scoreFont, scoreStr,
             0f, scoreY, vw,
-            new Color(0f, 1f, 1f, 1f),
-            scoreCounted
-                ? new Color(0.82f, 1f,    1f,    1f)
-                : new Color(1f,    1f,    0.65f, 1f),
-            0.80f + pulse * 0.20f);
+            scoreGlow, scoreMain,
+            0.82f + pulse * 0.18f);
 
-        // NEW RECORD / BEST
+        // ── NEW RECORD / BEST ─────────────────────────────────────
         float infoY = scoreY - 42f;
+
         if (newRecord) {
-            float rp = (MathUtils.sin(time * 6f) + 1f) * 0.5f;
-            neon(labelFont, " NEW RECORD  ",
+            // Pisca rápido no dourado — troféu
+            float rp = (MathUtils.sin(time * 5.5f) + 1f) * 0.5f;
+            neon(labelFont, "  NEW RECORD  ",
                 0f, infoY, vw,
-                new Color(1f, 0.88f, 0.10f, 1f),
-                new Color(1f, 1f,    0.60f, 1f),
-                0.60f + rp * 0.38f);
+                new Color(1f,    0.85f, 0.05f, 1f),
+                new Color(1f,    1f,    0.62f, 1f),
+                0.62f + rp * 0.36f);
         } else {
             neon(hintFont, "BEST  " + bestScore,
                 0f, infoY, vw,
-                new Color(0.50f, 0.80f, 1f, 1f),
-                new Color(0.82f, 0.94f, 1f, 1f),
-                0.55f);
+                new Color(0.45f, 0.75f, 1f, 1f),
+                new Color(0.80f, 0.95f, 1f, 1f),
+                0.45f + scorePulse * 0.18f);
         }
 
-        // PLAY AGAIN
+        // ── PLAY AGAIN ────────────────────────────────────────────
         neon(labelFont, "PLAY AGAIN",
             retryBounds.x,
             retryBounds.y + retryBounds.height / 2f + 8f,
             retryBounds.width,
-            new Color(0f,    1f, 1f, 1f),
-            new Color(0.82f, 1f, 1f, 1f),
-            0.72f + pulse * 0.22f);
+            new Color(0f,    0.95f, 1f,    1f),
+            new Color(0.85f, 1f,    1f,    1f),
+            0.72f + pulse * 0.24f);
 
-        // MAIN MENU
+        // ── MAIN MENU ─────────────────────────────────────────────
         neon(labelFont, "MAIN MENU",
             menuBounds.x,
             menuBounds.y + menuBounds.height / 2f + 8f,
             menuBounds.width,
-            new Color(0.80f, 0.20f, 1f, 1f),
-            new Color(1f,    0.82f, 1f, 1f),
-            0.68f + (1f - pulse) * 0.22f);
+            new Color(0.72f, 0.10f, 1f,    1f),
+            new Color(0.95f, 0.80f, 1f,    1f),
+            0.68f + pulseB * 0.24f);
 
-        // Hint
-        neon(hintFont, " Play Again ?",
+        // ── Hint ──────────────────────────────────────────────────
+        float hintPulse = (MathUtils.sin(time * 1.4f) + 1f) * 0.5f;
+        neon(hintFont, "Tap to play again",
             0f, menuBounds.y - 26f, vw,
-            new Color(0.45f, 0.65f, 1f, 1f),
-            new Color(0.80f, 0.90f, 1f, 1f),
-            0.28f + pulse * 0.28f);
+            new Color(0.40f, 0.65f, 1f, 1f),
+            new Color(0.78f, 0.92f, 1f, 1f),
+            0.22f + hintPulse * 0.20f);
 
         batch.end();
     }

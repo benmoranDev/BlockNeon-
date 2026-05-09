@@ -163,10 +163,13 @@ public class GameScreen implements Screen {
      */
     @Override
     public void render(float delta) {
+        //Limita o FPS para 30
+        delta = Math.min(delta, 1f / 30f);
         time += delta;
 
         handleKeyboardInput();
         session.update(delta);
+
 
         // ── Game Over ─────────────────────────────────────────
         if (session.isGameOver()) {
