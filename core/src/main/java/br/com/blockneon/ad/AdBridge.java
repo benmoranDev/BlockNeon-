@@ -6,4 +6,6 @@ public interface AdBridge {
 
     /** Esconde o banner. Chame no pause/game over. */
     void hideBanner();
+
+    float getBannerHeightWorld();
 }

@@ -9,6 +9,7 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.RelativeLayout;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.android.AndroidApplication;
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
 import com.google.android.gms.ads.AdRequest;
@@ -85,6 +86,32 @@ public class AndroidLauncher extends AndroidApplication implements AdBridge {
     public void hideBanner() {
         if (adView == null) return;
         runOnUiThread(() -> adView.setVisibility(View.GONE));
+    }
+
+    @Override
+    public float getBannerHeightWorld() {
+        if (adView == null) return 0f;
+
+        // Altura do banner em pixels reais
+        int bannerPx = adView.getHeight();
+
+        // Se o banner ainda não foi medido (antes do 1º layout), usa fallback: 50dp
+        // O banner padrão AdMob sempre tem 50dp de altura
+        if (bannerPx <= 0) {
+            float density = getResources().getDisplayMetrics().density;
+            bannerPx = Math.round(50f * density);
+        }
+
+        // Altura da tela em pixels reais
+        int screenPx = Gdx.graphics.getHeight();
+        if (screenPx <= 0) return 0f;
+
+        // Converte para world units:
+        // worldUnitsPerPixel = WORLD_HEIGHT_BASE / screenPx
+        // WORLD_HEIGHT = 800f (igual ao definido no seu GameOverScreen)
+        float worldUnitsPerPixel = 800f / screenPx;
+
+        return bannerPx * worldUnitsPerPixel;
     }
 
     /**
