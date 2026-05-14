@@ -11,6 +11,7 @@ import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.input.GestureDetector;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
@@ -46,6 +47,10 @@ public class GameScreen implements Screen {
     private Sound dropSound;
     private Sound clearSound;
     private Music bgMusic;
+
+    // Ajuste de Pause | Pause Adjustment
+    // Isso evita um “tranco” logo no primeiro frame após sair do pause, especialmente em Android.
+    private boolean skipNextUpdateAfterResume = false;
 
     // =========================================================
     // Animation / Animação
@@ -103,6 +108,31 @@ public class GameScreen implements Screen {
 
                 viewport.unproject(touchPoint.set(screenX, screenY, 0f));
 
+                // =========================
+                // Pause popup input
+                // =========================
+                if (session.isPaused()) {
+                    Rectangle resumeBounds = hudRenderer.getPauseResumeButtonBounds(layout);
+                    Rectangle panelBounds = hudRenderer.getPausePanelBounds(layout);
+
+                    if (resumeBounds.contains(touchPoint.x, touchPoint.y)) {
+                        pauseTouchConsumed = true;
+                        togglePauseFromUI();
+                        return true;
+                    }
+
+                    if (panelBounds.contains(touchPoint.x, touchPoint.y)) {
+                        pauseTouchConsumed = true;
+                        return true;
+                    }
+
+                    pauseTouchConsumed = true;
+                    return true;
+                }
+
+                // =========================
+                // HUD pause button
+                // =========================
                 if (layout.pauseButtonBounds.contains(touchPoint.x, touchPoint.y)) {
                     pauseTouchConsumed = true;
                     togglePauseFromUI();
@@ -117,7 +147,7 @@ public class GameScreen implements Screen {
             public boolean touchDragged(int screenX, int screenY, int pointer) {
                 if (pointer != 0) return false;
 
-                if (pauseTouchConsumed) {
+                if (pauseTouchConsumed || session.isPaused()) {
                     return true;
                 }
 
@@ -130,6 +160,10 @@ public class GameScreen implements Screen {
 
                 if (pauseTouchConsumed) {
                     pauseTouchConsumed = false;
+                    return true;
+                }
+
+                if (session.isPaused()) {
                     return true;
                 }
 
@@ -151,7 +185,7 @@ public class GameScreen implements Screen {
         GestureDetector gestureDetector = new GestureDetector(new GestureDetector.GestureAdapter() {
             @Override
             public boolean fling(float velocityX, float velocityY, int button) {
-                if (pauseTouchConsumed) {
+                if (pauseTouchConsumed || session.isPaused()) {
                     return true;
                 }
                 return inputController.onFling(velocityX, velocityY);
@@ -221,10 +255,16 @@ public class GameScreen implements Screen {
     @Override
     public void render(float delta) {
         delta = Math.min(delta, 1f / 30f);
-        time += delta;
 
-        handleKeyboardInput();
-        session.update(delta);
+        if (!session.isPaused()) {
+            if (skipNextUpdateAfterResume) {
+                skipNextUpdateAfterResume = false;
+            } else {
+                time += delta;
+                handleKeyboardInput();
+                session.update(delta);
+            }
+        }
 
         if (session.isGameOver()) {
             if (bgMusic != null) {
@@ -240,21 +280,23 @@ public class GameScreen implements Screen {
             return;
         }
 
-        if (session.consumeComboNotify()) {
-            backgroundRenderer.notifyCombo(session.getComboCount());
-        }
-        if (session.consumeComboReset()) {
-            backgroundRenderer.resetCombo();
-        }
+        if (!session.isPaused()) {
+            if (session.consumeComboNotify()) {
+                backgroundRenderer.notifyCombo(session.getComboCount());
+            }
+            if (session.consumeComboReset()) {
+                backgroundRenderer.resetCombo();
+            }
 
-        if (session.consumeDropSound()) {
-            playSound(dropSound, 0.60f);
-        }
-        if (session.consumeClearSound()) {
-            playSound(clearSound, 1.00f);
-        }
+            if (session.consumeDropSound()) {
+                playSound(dropSound, 0.60f);
+            }
+            if (session.consumeClearSound()) {
+                playSound(clearSound, 1.00f);
+            }
 
-        backgroundRenderer.updateTheme(session.getScore());
+            backgroundRenderer.updateTheme(session.getScore());
+        }
 
         Gdx.gl.glClearColor(0.00f, 0.01f, 0.06f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
