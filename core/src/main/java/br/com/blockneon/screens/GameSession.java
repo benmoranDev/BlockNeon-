@@ -8,6 +8,8 @@ import br.com.blockneon.model.ActivePiece;
 import br.com.blockneon.model.Board;
 import br.com.blockneon.model.Tetromino;
 
+import com.badlogic.gdx.utils.Array;
+
 public class GameSession {
 
     // =========================================================
@@ -21,6 +23,12 @@ public class GameSession {
     private static final int LINES_PER_LEVEL = 10;
 
     // =========================================================
+    // Combo tuning
+    // =========================================================
+
+    private static final float COMBO_WINDOW = 4.0f;
+
+    // =========================================================
     // Core state
     // =========================================================
 
@@ -30,7 +38,7 @@ public class GameSession {
     private final Array<Tetromino> nextQueue = new Array<>();
     private final Array<Tetromino> bag       = new Array<>();
 
-    private Tetromino heldTetromino   = null;
+    private Tetromino heldTetromino    = null;
     private boolean   holdUsedThisTurn = false;
 
     private float lockTimer = 0f;
@@ -40,18 +48,24 @@ public class GameSession {
     private int level             = 1;
 
     // =========================================================
+    // Pause state
+    // =========================================================
+
+    private boolean paused = false;
+
+    // =========================================================
     // Drop — acumulador frame-rate independent
     // =========================================================
 
     private float dropAccumulator = 0f;
-    private float dropInterval    = 1.0f; // recalculado no refreshLevel()
+    private float dropInterval    = 1.0f;
 
     // =========================================================
     // FX state
     // =========================================================
 
-    private final Array<Integer> flashRows     = new Array<>();
-    private float                lineFlashTimer = 0f;
+    private final Array<Integer> flashRows = new Array<>();
+    private float lineFlashTimer = 0f;
 
     // =========================================================
     // Audio flags
@@ -66,8 +80,6 @@ public class GameSession {
 
     private int   comboCount       = 0;
     private float comboWindowTimer = 0f;
-
-    private static final float COMBO_WINDOW = 4.0f;
 
     private boolean pendingComboNotify = false;
     private boolean pendingComboReset  = false;
@@ -94,6 +106,7 @@ public class GameSession {
         board.clear();
         activePiece = null;
         gameOver    = false;
+        paused      = false;
 
         nextQueue.clear();
         bag.clear();
@@ -116,8 +129,8 @@ public class GameSession {
         pendingDropSound  = false;
         pendingClearSound = false;
 
-        comboCount       = 0;
-        comboWindowTimer = 0f;
+        comboCount         = 0;
+        comboWindowTimer   = 0f;
         pendingComboNotify = false;
         pendingComboReset  = false;
 
@@ -130,15 +143,46 @@ public class GameSession {
     // =========================================================
 
     public void update(float delta) {
-        if (gameOver) return;
+        if (gameOver || paused) return;
 
-        // Clamp — evita saltos em frames lentos ou pausas
         delta = Math.min(delta, 1f / 30f);
 
         updateDrop(delta);
         updateLock(delta);
         updateLineFlash(delta);
         updateComboWindow(delta);
+    }
+
+    // =========================================================
+    // Pause
+    // =========================================================
+
+    public void pauseGame() {
+        if (gameOver) return;
+        paused = true;
+    }
+
+    public void resumeGame() {
+        if (gameOver) return;
+        paused = false;
+
+        // evita avanço instantâneo no retorno
+        dropAccumulator = 0f;
+        lockTimer = 0f;
+    }
+
+    public void togglePause() {
+        if (gameOver) return;
+
+        if (paused) {
+            resumeGame();
+        } else {
+            pauseGame();
+        }
+    }
+
+    public boolean isPaused() {
+        return paused;
     }
 
     // =========================================================
@@ -153,8 +197,7 @@ public class GameSession {
         while (dropAccumulator >= dropInterval) {
             dropAccumulator -= dropInterval;
 
-            if (!tryStepDown()) {
-                // Peça tocou o chão — lock delay começa
+            if (!tryStepDownInternal()) {
                 break;
             } else {
                 lockTimer = 0f;
@@ -185,7 +228,6 @@ public class GameSession {
     // =========================================================
 
     private float calcDropInterval(int lvl) {
-        // Tetris Guideline: (0.8 - (level-1)*0.007)^(level-1)
         return Math.max(0.05f,
             (float) Math.pow(0.8 - (lvl - 1) * 0.007, lvl - 1));
     }
@@ -225,7 +267,9 @@ public class GameSession {
 
     private void refillBag() {
         bag.clear();
-        for (Tetromino t : Tetromino.values()) bag.add(t);
+        for (Tetromino t : Tetromino.values()) {
+            bag.add(t);
+        }
         bag.shuffle();
     }
 
@@ -259,6 +303,7 @@ public class GameSession {
         if (!board.canPlace(activePiece)) {
             activePiece = null;
             gameOver    = true;
+            paused      = false;
         }
     }
 
@@ -267,7 +312,7 @@ public class GameSession {
     // =========================================================
 
     public boolean tryHoldPiece() {
-        if (activePiece == null || holdUsedThisTurn) return false;
+        if (paused || activePiece == null || holdUsedThisTurn) return false;
 
         Tetromino current = activePiece.getTetromino();
 
@@ -278,8 +323,8 @@ public class GameSession {
             return true;
         }
 
-        Tetromino swap    = heldTetromino;
-        heldTetromino     = current;
+        Tetromino swap = heldTetromino;
+        heldTetromino  = current;
         ActivePiece swapped = new ActivePiece(swap, Board.ROWS - 2, 3);
 
         if (board.canPlace(swapped)) {
@@ -299,47 +344,61 @@ public class GameSession {
     // =========================================================
 
     public boolean tryMoveLeft() {
-        if (activePiece == null) return false;
+        if (paused || activePiece == null) return false;
         activePiece.moveLeft();
-        if (!board.canPlace(activePiece)) { activePiece.moveRight(); return false; }
+        if (!board.canPlace(activePiece)) {
+            activePiece.moveRight();
+            return false;
+        }
         lockTimer = 0f;
         return true;
     }
 
     public boolean tryMoveRight() {
-        if (activePiece == null) return false;
+        if (paused || activePiece == null) return false;
         activePiece.moveRight();
-        if (!board.canPlace(activePiece)) { activePiece.moveLeft(); return false; }
+        if (!board.canPlace(activePiece)) {
+            activePiece.moveLeft();
+            return false;
+        }
         lockTimer = 0f;
         return true;
     }
 
     public boolean tryRotate() {
-        if (activePiece == null) return false;
+        if (paused || activePiece == null) return false;
         activePiece.rotateRight();
-        if (!board.canPlace(activePiece)) { activePiece.rotateLeft(); return false; }
+        if (!board.canPlace(activePiece)) {
+            activePiece.rotateLeft();
+            return false;
+        }
         lockTimer = 0f;
         return true;
     }
 
     public void softDropOneStep() {
-        if (activePiece == null) return;
-        if (tryStepDown()) {
+        if (paused || activePiece == null) return;
+
+        if (tryStepDownInternal()) {
             score += 1;
             lockTimer = 0f;
         }
     }
 
     public void hardDrop() {
-        if (activePiece == null) return;
+        if (paused || activePiece == null) return;
+
         int cells = 0;
-        while (tryStepDown()) cells++;
+        while (tryStepDownInternal()) {
+            cells++;
+        }
+
         score += cells * 2;
         pendingDropSound = true;
         lockAndSpawn();
     }
 
-    private boolean tryStepDown() {
+    private boolean tryStepDownInternal() {
         activePiece.moveDown();
         if (!board.canPlace(activePiece)) {
             activePiece.moveUp();
@@ -350,6 +409,7 @@ public class GameSession {
 
     private boolean isGrounded() {
         if (activePiece == null) return false;
+
         activePiece.moveDown();
         boolean can = board.canPlace(activePiece);
         activePiece.moveUp();
@@ -391,7 +451,7 @@ public class GameSession {
     private void refreshLevel() {
         int newLevel = 1 + (linesClearedTotal / LINES_PER_LEVEL);
         if (newLevel != level) {
-            level        = newLevel;
+            level = newLevel;
             dropInterval = calcDropInterval(level);
             dropAccumulator = 0f;
         }
@@ -402,30 +462,72 @@ public class GameSession {
     // =========================================================
 
     public boolean consumeDropSound() {
-        boolean v = pendingDropSound; pendingDropSound = false; return v;
+        boolean v = pendingDropSound;
+        pendingDropSound = false;
+        return v;
     }
 
     public boolean consumeClearSound() {
-        boolean v = pendingClearSound; pendingClearSound = false; return v;
+        boolean v = pendingClearSound;
+        pendingClearSound = false;
+        return v;
     }
 
     // =========================================================
     // Getters
     // =========================================================
 
-    public Board            getBoard()             { return board; }
-    public ActivePiece      getActivePiece()        { return activePiece; }
-    public Array<Tetromino> getNextQueue()          { return nextQueue; }
-    public Tetromino        getHeldTetromino()      { return heldTetromino; }
-    public Array<Integer>   getFlashRows()          { return flashRows; }
-    public float            getLineFlashTimer()     { return lineFlashTimer; }
-    public int              getScore()              { return score; }
-    public int              getLinesClearedTotal()  { return linesClearedTotal; }
-    public int              getLevel()              { return level; }
-    public boolean          isHoldUsedThisTurn()    { return holdUsedThisTurn; }
-    public boolean          isGameOver()            { return gameOver; }
-    public int              getComboCount()         { return comboCount; }
-    public float            getComboWindowTimer()   { return comboWindowTimer; }
+    public Board getBoard() {
+        return board;
+    }
+
+    public ActivePiece getActivePiece() {
+        return activePiece;
+    }
+
+    public Array<Tetromino> getNextQueue() {
+        return nextQueue;
+    }
+
+    public Tetromino getHeldTetromino() {
+        return heldTetromino;
+    }
+
+    public Array<Integer> getFlashRows() {
+        return flashRows;
+    }
+
+    public float getLineFlashTimer() {
+        return lineFlashTimer;
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public int getLinesClearedTotal() {
+        return linesClearedTotal;
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public boolean isHoldUsedThisTurn() {
+        return holdUsedThisTurn;
+    }
+
+    public boolean isGameOver() {
+        return gameOver;
+    }
+
+    public int getComboCount() {
+        return comboCount;
+    }
+
+    public float getComboWindowTimer() {
+        return comboWindowTimer;
+    }
 
     public int getGoalLines() {
         int r = LINES_PER_LEVEL - (linesClearedTotal % LINES_PER_LEVEL);
@@ -433,10 +535,14 @@ public class GameSession {
     }
 
     public boolean consumeComboNotify() {
-        boolean v = pendingComboNotify; pendingComboNotify = false; return v;
+        boolean v = pendingComboNotify;
+        pendingComboNotify = false;
+        return v;
     }
 
     public boolean consumeComboReset() {
-        boolean v = pendingComboReset; pendingComboReset = false; return v;
+        boolean v = pendingComboReset;
+        pendingComboReset = false;
+        return v;
     }
 }

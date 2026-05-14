@@ -29,6 +29,16 @@ public class HudRenderer {
     private static final Color BOX_BG_INNER    = new Color(0.02f, 0.05f, 0.10f, 1f);
 
     // =========================================================
+    // Pause palette
+    // =========================================================
+
+    private static final Color PAUSE_ACTIVE_OUTER   = new Color(0.03f, 0.08f, 0.18f, 1f);
+    private static final Color PAUSE_ACTIVE_INNER   = new Color(0.01f, 0.04f, 0.10f, 1f);
+    private static final Color PAUSE_PAUSED_OUTER   = new Color(0.12f, 0.08f, 0.20f, 1f);
+    private static final Color PAUSE_PAUSED_INNER   = new Color(0.08f, 0.04f, 0.16f, 1f);
+    private static final Color PAUSE_ICON_COLOR     = new Color(0.82f, 1f, 1f, 0.95f);
+
+    // =========================================================
     // Style tuning
     // =========================================================
 
@@ -121,6 +131,7 @@ public class HudRenderer {
         drawTopBottomPanels(layout);
         drawTopAdBar(layout);
         drawTopBottomBoxes(layout, session);
+        drawPauseButton(layout, session);
 
         drawNextBoxScanline(layout.nextMainBox);
         drawNextBoxScanline(layout.nextQueueBox1);
@@ -137,11 +148,16 @@ public class HudRenderer {
         drawTopBottomPanelOutlines(layout);
         drawTopAdBarOutline(layout.topAdBounds);
         drawTopBottomBoxOutlines(layout, session);
+        drawPauseButtonOutline(layout, session);
         shapeRenderer.end();
 
         Gdx.gl.glDisable(GL20.GL_BLEND);
 
         drawHudText(layout, session);
+
+        if (session.isPaused()) {
+            drawPauseOverlay(camera, layout);
+        }
     }
 
     // =========================================================
@@ -459,6 +475,11 @@ public class HudRenderer {
         drawTopStats(layout, session);
         drawBottomLabels(layout, session);
         drawHints(layout);
+
+        if (session.isPaused()) {
+            drawPauseOverlayText(layout);
+        }
+
         batch.end();
     }
 
@@ -550,6 +571,135 @@ public class HudRenderer {
             layout.bottomShellBounds.y + 16f,
             layout.bottomShellBounds.width - 16f,
             Align.center, true);
+    }
+
+    // =========================================================
+    // Pause
+    // =========================================================
+
+    private void drawPauseButton(GameLayout layout, GameSession session) {
+        Rectangle b = layout.pauseButtonBounds;
+        float pulse = (MathUtils.sin(time * 3.2f) + 1f) * 0.5f;
+
+        Color outer = session.isPaused() ? PAUSE_PAUSED_OUTER : PAUSE_ACTIVE_OUTER;
+        Color inner = session.isPaused() ? PAUSE_PAUSED_INNER : PAUSE_ACTIVE_INNER;
+
+        drawBeveledPanelFilled(b, 6f, outer, inner);
+
+        Rectangle innerBox = insetRect(b, 3f);
+        drawBeveledPanelFilled(innerBox, 4f,
+            new Color(inner),
+            new Color(0.01f, 0.03f, 0.08f, 1f));
+
+        shapeRenderer.setColor(1f, 1f, 1f, 0.05f + pulse * 0.02f);
+        shapeRenderer.rect(b.x + 7f, b.y + b.height - 11f, b.width - 14f, 3f);
+
+        if (session.isPaused()) {
+            drawPlayIcon(b);
+        } else {
+            drawPauseIcon(b);
+        }
+    }
+
+    private void drawPauseButtonOutline(GameLayout layout, GameSession session) {
+        Rectangle b = layout.pauseButtonBounds;
+        float pulse = (MathUtils.sin(time * 2.4f) + 1f) * 0.5f;
+
+        Color outline = session.isPaused()
+            ? new Color(0.95f, 0.45f, 1f, 0.45f + pulse * 0.18f)
+            : new Color(0.25f, 0.90f, 1f, 0.42f + pulse * 0.18f);
+
+        drawBeveledOutline(b, 6f, outline);
+
+        Rectangle inner = insetRect(b, 1.5f);
+        drawBeveledOutline(inner, 5f,
+            new Color(0.55f, 1f, 1f, 0.10f + pulse * 0.08f));
+    }
+
+    private void drawPauseIcon(Rectangle b) {
+        float barW = 7f;
+        float barH = 20f;
+        float gap  = 8f;
+        float cx   = b.x + b.width / 2f;
+        float cy   = b.y + b.height / 2f - barH / 2f;
+
+        shapeRenderer.setColor(PAUSE_ICON_COLOR);
+        shapeRenderer.rect(cx - gap - barW / 2f, cy, barW, barH);
+        shapeRenderer.rect(cx + gap - barW / 2f, cy, barW, barH);
+    }
+
+    private void drawPlayIcon(Rectangle b) {
+        float cx = b.x + b.width / 2f;
+        float cy = b.y + b.height / 2f;
+        float w  = 16f;
+        float h  = 20f;
+
+        shapeRenderer.setColor(PAUSE_ICON_COLOR);
+        shapeRenderer.triangle(
+            cx - 5f, cy - h / 2f,
+            cx - 5f, cy + h / 2f,
+            cx - 5f + w, cy
+        );
+    }
+
+    private void drawPauseOverlay(OrthographicCamera camera, GameLayout layout) {
+        shapeRenderer.setProjectionMatrix(camera.combined);
+
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        shapeRenderer.setColor(0f, 0f, 0f, 0.42f);
+        shapeRenderer.rect(0f, 0f, layout.viewportWidth, layout.viewportHeight);
+
+        Rectangle panel = getPausePanel(layout);
+
+        drawBeveledPanelFilled(
+            panel,
+            10f,
+            new Color(0.04f, 0.09f, 0.18f, 0.96f),
+            new Color(0.02f, 0.05f, 0.12f, 0.96f)
+        );
+
+        shapeRenderer.end();
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        drawBeveledOutline(panel, 10f, new Color(0.30f, 0.95f, 1f, 0.75f));
+        shapeRenderer.end();
+
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
+    private void drawPauseOverlayText(GameLayout layout) {
+        Rectangle panel = getPausePanel(layout);
+
+        neon(titleFont,
+            "PAUSED",
+            panel.x,
+            panel.y + panel.height - 34f,
+            panel.width,
+            new Color(0.20f, 0.90f, 1f, 1f),
+            new Color(0.92f, 1f, 1f, 1f),
+            0.95f);
+
+        hintFont.setColor(1f, 1f, 1f, 0.78f);
+        hintFont.draw(batch,
+            "Tap pause or press BACK to resume",
+            panel.x + 14f,
+            panel.y + 42f,
+            panel.width - 28f,
+            Align.center,
+            true);
+    }
+
+    private Rectangle getPausePanel(GameLayout layout) {
+        return new Rectangle(
+            layout.viewportWidth * 0.5f - 150f,
+            layout.viewportHeight * 0.5f - 70f,
+            300f,
+            140f
+        );
     }
 
     // =========================================================

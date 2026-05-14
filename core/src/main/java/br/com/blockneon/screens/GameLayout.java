@@ -4,10 +4,6 @@ import br.com.blockneon.model.Board;
 import com.badlogic.gdx.math.Rectangle;
 
 
-
-
-import com.badlogic.gdx.math.Rectangle;
-
 public class GameLayout {
 
     // =========================================================
@@ -26,39 +22,46 @@ public class GameLayout {
     public static final float BOARD_FRAME_PADDING = 2f;
     public static final float BOARD_INNER_PADDING = 6f;
 
-
     // =========================================================
     // Shell sizes / Tamanhos dos HUDs
     // =========================================================
-    private static final float TOP_SHELL_HEIGHT      = 150f; // era 120f
-    private static final float BOTTOM_SHELL_HEIGHT   = 120f;
-    private static final float SHELL_GAP             = 24f;
+    private static final float TOP_SHELL_HEIGHT    = 150f;
+    private static final float BOTTOM_SHELL_HEIGHT = 120f;
+    private static final float SHELL_GAP           = 24f;
 
     // =========================================================
     // Área de anúncio no topo
     // =========================================================
-    private static final float TOP_AD_HEIGHT         = 40f;
-    private static final float TOP_AD_MARGIN_BOTTOM  = 6f;
-    // Faixa de anúncio
+    private static final float TOP_AD_HEIGHT        = 40f;
+    private static final float TOP_AD_MARGIN_BOTTOM = 6f;
+
     public final Rectangle topAdBounds = new Rectangle();
+
+    // =========================================================
+    // Botão Pause
+    // =========================================================
+    public final Rectangle pauseButtonBounds = new Rectangle();
+    private static final float PAUSE_BUTTON_SIZE         = 52f;
+    private static final float PAUSE_BUTTON_MARGIN_RIGHT = 14f;
+    private static final float PAUSE_BUTTON_MARGIN_TOP   = 10f;
 
     // =========================================================
     // Top box layout
     // =========================================================
-    private static final float TOP_BOX_WIDTH        = 120f;
-    private static final float TOP_BOX_HEIGHT       = 72f;
-    private static final float TOP_BOX_GAP          = 12f;
+    private static final float TOP_BOX_WIDTH         = 120f;
+    private static final float TOP_BOX_HEIGHT        = 72f;
+    private static final float TOP_BOX_GAP           = 12f;
     private static final float TOP_BOX_BOTTOM_MARGIN = 14f;
 
     // =========================================================
     // Bottom box layout
     // =========================================================
-    private static final float BOTTOM_BOX_Y_OFFSET    = 18f;
-    private static final float NEXT_MAIN_BOX_WIDTH    = 110f;
-    private static final float NEXT_MAIN_BOX_HEIGHT   = 80f;
-    private static final float NEXT_QUEUE_BOX_WIDTH   = 70f;
-    private static final float NEXT_QUEUE_BOX_HEIGHT  = 60f;
-    private static final float BOTTOM_BOX_GAP         = 12f;
+    private static final float BOTTOM_BOX_Y_OFFSET   = 18f;
+    private static final float NEXT_MAIN_BOX_WIDTH   = 110f;
+    private static final float NEXT_MAIN_BOX_HEIGHT  = 80f;
+    private static final float NEXT_QUEUE_BOX_WIDTH  = 70f;
+    private static final float NEXT_QUEUE_BOX_HEIGHT = 60f;
+    private static final float BOTTOM_BOX_GAP        = 12f;
 
     // =========================================================
     // Posições principais (calculadas dinamicamente)
@@ -66,7 +69,9 @@ public class GameLayout {
     public float boardX;
     public float boardY;
 
-    // Dimensões reais da tela virtual (atualizadas pelo ExtendViewport)
+    // =========================================================
+    // Dimensões reais da tela virtual
+    // =========================================================
     public float viewportWidth  = WORLD_WIDTH;
     public float viewportHeight = WORLD_HEIGHT;
 
@@ -132,19 +137,29 @@ public class GameLayout {
         // Shell superior — logo acima do board
         // ---------------------------------------------------
         float topShellY = boardY + BOARD_HEIGHT + SHELL_GAP;
-        topShellBounds.set(0, topShellY, shellWidth, TOP_SHELL_HEIGHT);
+        topShellBounds.set(0f, topShellY, shellWidth, TOP_SHELL_HEIGHT);
 
         // ---------------------------------------------------
         // Shell inferior — ancorado na borda inferior da tela
         // ---------------------------------------------------
-        bottomShellBounds.set(0, 0f, shellWidth, BOTTOM_SHELL_HEIGHT);
+        bottomShellBounds.set(0f, 0f, shellWidth, BOTTOM_SHELL_HEIGHT);
+
+        // ---------------------------------------------------
+        // Botão pause — canto superior direito do top shell
+        // ---------------------------------------------------
+        pauseButtonBounds.set(
+            topShellBounds.x + topShellBounds.width - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN_RIGHT,
+            topShellBounds.y + topShellBounds.height - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN_TOP,
+            PAUSE_BUTTON_SIZE,
+            PAUSE_BUTTON_SIZE
+        );
 
         // ---------------------------------------------------
         // Faixa de anúncio
         // ---------------------------------------------------
         topAdBounds.set(
             topShellBounds.x + 12f,
-            topShellBounds.y + TOP_SHELL_HEIGHT - TOP_AD_HEIGHT - 6f,
+            topShellBounds.y + topShellBounds.height - TOP_AD_HEIGHT - TOP_AD_MARGIN_BOTTOM,
             topShellBounds.width - 24f,
             TOP_AD_HEIGHT
         );
@@ -161,46 +176,66 @@ public class GameLayout {
         levelBox.set(
             holdBox.x + holdBox.width + TOP_BOX_GAP,
             topBoxY,
-            TOP_BOX_WIDTH, TOP_BOX_HEIGHT
+            TOP_BOX_WIDTH,
+            TOP_BOX_HEIGHT
         );
 
         goalBox.set(
             levelBox.x + levelBox.width + TOP_BOX_GAP,
             topBoxY,
-            TOP_BOX_WIDTH, TOP_BOX_HEIGHT
+            TOP_BOX_WIDTH,
+            TOP_BOX_HEIGHT
         );
 
         // ---------------------------------------------------
-        // Bottom boxes (NEXT queue) — relativo ao bottomShellBounds
+        // Bottom boxes (NEXT queue)
         // ---------------------------------------------------
         float bottomRowWidth =
-            NEXT_MAIN_BOX_WIDTH  + BOTTOM_BOX_GAP +
+            NEXT_MAIN_BOX_WIDTH + BOTTOM_BOX_GAP +
                 NEXT_QUEUE_BOX_WIDTH * 4f + BOTTOM_BOX_GAP * 3f;
 
         float bottomRowX = bottomShellBounds.x
             + (bottomShellBounds.width - bottomRowWidth) / 2f;
         float bottomBoxY = bottomShellBounds.y + BOTTOM_BOX_Y_OFFSET;
 
-        nextMainBox.set(bottomRowX, bottomBoxY,
-            NEXT_MAIN_BOX_WIDTH, NEXT_MAIN_BOX_HEIGHT);
+        nextMainBox.set(
+            bottomRowX,
+            bottomBoxY,
+            NEXT_MAIN_BOX_WIDTH,
+            NEXT_MAIN_BOX_HEIGHT
+        );
 
         nextQueueBox1.set(
             nextMainBox.x + nextMainBox.width + BOTTOM_BOX_GAP,
-            bottomBoxY + 8f, NEXT_QUEUE_BOX_WIDTH, NEXT_QUEUE_BOX_HEIGHT);
+            bottomBoxY + 8f,
+            NEXT_QUEUE_BOX_WIDTH,
+            NEXT_QUEUE_BOX_HEIGHT
+        );
 
         nextQueueBox2.set(
             nextQueueBox1.x + nextQueueBox1.width + BOTTOM_BOX_GAP,
-            bottomBoxY + 8f, NEXT_QUEUE_BOX_WIDTH, NEXT_QUEUE_BOX_HEIGHT);
+            bottomBoxY + 8f,
+            NEXT_QUEUE_BOX_WIDTH,
+            NEXT_QUEUE_BOX_HEIGHT
+        );
 
         nextQueueBox3.set(
             nextQueueBox2.x + nextQueueBox2.width + BOTTOM_BOX_GAP,
-            bottomBoxY + 8f, NEXT_QUEUE_BOX_WIDTH, NEXT_QUEUE_BOX_HEIGHT);
+            bottomBoxY + 8f,
+            NEXT_QUEUE_BOX_WIDTH,
+            NEXT_QUEUE_BOX_HEIGHT
+        );
 
         nextQueueBox4.set(
             nextQueueBox3.x + nextQueueBox3.width + BOTTOM_BOX_GAP,
-            bottomBoxY + 8f, NEXT_QUEUE_BOX_WIDTH, NEXT_QUEUE_BOX_HEIGHT);
+            bottomBoxY + 8f,
+            NEXT_QUEUE_BOX_WIDTH,
+            NEXT_QUEUE_BOX_HEIGHT
+        );
 
+        // ---------------------------------------------------
         // Compatibilidade legado
+        // ---------------------------------------------------
         leftShellBounds.set(topShellBounds);
         rightShellBounds.set(bottomShellBounds);
     }

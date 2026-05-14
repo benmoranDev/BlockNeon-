@@ -3,16 +3,19 @@ package br.com.blockneon.screens;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.input.GestureDetector;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
-
 import br.com.blockneon.Main;
+import br.com.blockneon.controllers.GameInputController;
 import br.com.blockneon.model.Board;
 
 public class GameScreen implements Screen {
@@ -30,6 +33,13 @@ public class GameScreen implements Screen {
     private final HudRenderer hudRenderer;
 
     // =========================================================
+    // Input
+    // =========================================================
+    private GameInputController inputController;
+    private final Vector3 touchPoint = new Vector3();
+    private boolean pauseTouchConsumed = false;
+
+    // =========================================================
     // Audio / Áudio
     // =========================================================
     private Sound moveSound;
@@ -40,7 +50,6 @@ public class GameScreen implements Screen {
     // =========================================================
     // Animation / Animação
     // =========================================================
-
     private float time = 0f;
 
     /**
@@ -67,7 +76,6 @@ public class GameScreen implements Screen {
      */
     @Override
     public void show() {
-        ((Main) game).adBridge.showBanner();
         viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true);
         camera.update();
         layout.update(viewport.getWorldWidth(), viewport.getWorldHeight());
@@ -75,59 +83,106 @@ public class GameScreen implements Screen {
         loadAudio();
         session.resetRun();
         setupInput();
-        ((Main) game).adBridge.showBanner(); // banner aparece quando o jogo começa
+
+        Gdx.input.setCatchKey(Input.Keys.BACK, true);
+        ((Main) game).adBridge.showBanner();
     }
 
     /**
-     * Configures gesture input for mobile controls.
-     * Configura o input por gestos para controles mobile.
+     * Configures integrated gameplay + pause input.
+     * Configura input integrado de gameplay + pause.
      */
     private void setupInput() {
-        Gdx.input.setInputProcessor(new GestureDetector(new GestureDetector.GestureAdapter() {
-            private float accX = 0f;
-            private float accY = 0f;
+        inputController = new GameInputController(session);
+
+        InputAdapter uiAndKeyInput = new InputAdapter() {
 
             @Override
-            public boolean tap(float x, float y, int count, int button) {
-                if (session.tryRotate()) playSound(moveSound, 0.55f);
-                return true;
-            }
+            public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+                if (pointer != 0) return false;
 
-            @Override
-            public boolean longPress(float x, float y) {
-                if (session.tryHoldPiece()) playSound(moveSound, 0.55f);
-                return true;
-            }
+                viewport.unproject(touchPoint.set(screenX, screenY, 0f));
 
-            @Override
-            public boolean pan(float x, float y, float deltaX, float deltaY) {
-                accX += deltaX;
-                accY += deltaY;
-
-                if (accX >= 60f) {
-                    if (session.tryMoveRight()) playSound(moveSound, 0.45f);
-                    accX = 0f;
-                } else if (accX <= -60f) {
-                    if (session.tryMoveLeft()) playSound(moveSound, 0.45f);
-                    accX = 0f;
+                if (layout.pauseButtonBounds.contains(touchPoint.x, touchPoint.y)) {
+                    pauseTouchConsumed = true;
+                    togglePauseFromUI();
+                    return true;
                 }
 
-                if (accY >= 80f) {
-                    session.softDropOneStep();
-                    accY = 0f;
-                }
-
-                return true;
+                pauseTouchConsumed = false;
+                return inputController.touchDown(screenX, screenY, pointer, button);
             }
 
+            @Override
+            public boolean touchDragged(int screenX, int screenY, int pointer) {
+                if (pointer != 0) return false;
+
+                if (pauseTouchConsumed) {
+                    return true;
+                }
+
+                return inputController.touchDragged(screenX, screenY, pointer);
+            }
+
+            @Override
+            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+                if (pointer != 0) return false;
+
+                if (pauseTouchConsumed) {
+                    pauseTouchConsumed = false;
+                    return true;
+                }
+
+                return inputController.touchUp(screenX, screenY, pointer, button);
+            }
+
+            @Override
+            public boolean keyDown(int keycode) {
+                if (keycode == Input.Keys.ESCAPE ||
+                    keycode == Input.Keys.P ||
+                    keycode == Input.Keys.BACK) {
+                    togglePauseFromUI();
+                    return true;
+                }
+                return false;
+            }
+        };
+
+        GestureDetector gestureDetector = new GestureDetector(new GestureDetector.GestureAdapter() {
             @Override
             public boolean fling(float velocityX, float velocityY, int button) {
-                if (velocityY > 1500f && Math.abs(velocityY) > Math.abs(velocityX)) {
-                    session.hardDrop();
+                if (pauseTouchConsumed) {
+                    return true;
                 }
-                return true;
+                return inputController.onFling(velocityX, velocityY);
             }
-        }));
+        });
+
+        InputMultiplexer multiplexer = new InputMultiplexer();
+        multiplexer.addProcessor(uiAndKeyInput);
+        multiplexer.addProcessor(gestureDetector);
+
+        Gdx.input.setInputProcessor(multiplexer);
+    }
+
+    /**
+     * Toggle pause via UI or key.
+     * Alterna pause via botão ou tecla.
+     */
+    private void togglePauseFromUI() {
+        session.togglePause();
+
+        if (session.isPaused()) {
+            if (bgMusic != null) {
+                bgMusic.pause();
+            }
+            ((Main) game).adBridge.hideBanner();
+        } else {
+            if (bgMusic != null) {
+                bgMusic.play();
+            }
+            ((Main) game).adBridge.showBanner();
+        }
     }
 
     /**
@@ -154,7 +209,9 @@ public class GameScreen implements Screen {
      * Reproduz um efeito sonoro se disponível.
      */
     private void playSound(Sound sound, float volume) {
-        if (sound != null) sound.play(volume);
+        if (sound != null) {
+            sound.play(volume);
+        }
     }
 
     /**
@@ -163,17 +220,16 @@ public class GameScreen implements Screen {
      */
     @Override
     public void render(float delta) {
-        //Limita o FPS para 30
         delta = Math.min(delta, 1f / 30f);
         time += delta;
 
         handleKeyboardInput();
         session.update(delta);
 
-
-        // ── Game Over ─────────────────────────────────────────
         if (session.isGameOver()) {
-            if (bgMusic != null) bgMusic.stop();
+            if (bgMusic != null) {
+                bgMusic.stop();
+            }
 
             int finalScore = session.getScore();
             boolean newRecord = ((Main) game).scoreManager.submit(finalScore);
@@ -184,7 +240,6 @@ public class GameScreen implements Screen {
             return;
         }
 
-        // ── Combo feedback ──────────────────────────────────
         if (session.consumeComboNotify()) {
             backgroundRenderer.notifyCombo(session.getComboCount());
         }
@@ -192,15 +247,16 @@ public class GameScreen implements Screen {
             backgroundRenderer.resetCombo();
         }
 
-        // ── Audio flags ──────────────────────────────────────
-        if (session.consumeDropSound())  playSound(dropSound,  0.60f);
-        if (session.consumeClearSound()) playSound(clearSound, 1.00f);
+        if (session.consumeDropSound()) {
+            playSound(dropSound, 0.60f);
+        }
+        if (session.consumeClearSound()) {
+            playSound(clearSound, 1.00f);
+        }
 
-        // ── Theme update ─────────────────────────────────────
         backgroundRenderer.updateTheme(session.getScore());
 
-        // ── Draw ─────────────────────────────────────────────
-        Gdx.gl.glClearColor(0.00f, 0.01f, 0.06f, 1f);// ── Black background
+        Gdx.gl.glClearColor(0.00f, 0.01f, 0.06f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         viewport.apply();
@@ -216,21 +272,38 @@ public class GameScreen implements Screen {
      * Processa os controles de teclado no desktop.
      */
     private void handleKeyboardInput() {
+        if (session.isPaused()) {
+            return;
+        }
+
         if (Gdx.input.isKeyJustPressed(Input.Keys.LEFT)) {
-            if (session.tryMoveLeft())  playSound(moveSound, 0.45f);
+            if (session.tryMoveLeft()) {
+                playSound(moveSound, 0.45f);
+            }
         }
+
         if (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT)) {
-            if (session.tryMoveRight()) playSound(moveSound, 0.45f);
+            if (session.tryMoveRight()) {
+                playSound(moveSound, 0.45f);
+            }
         }
+
         if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
-            if (session.tryRotate())    playSound(moveSound, 0.55f);
+            if (session.tryRotate()) {
+                playSound(moveSound, 0.55f);
+            }
         }
+
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
             session.hardDrop();
         }
+
         if (Gdx.input.isKeyJustPressed(Input.Keys.C)) {
-            if (session.tryHoldPiece()) playSound(moveSound, 0.55f);
+            if (session.tryHoldPiece()) {
+                playSound(moveSound, 0.55f);
+            }
         }
+
         if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
             session.softDropOneStep();
         }
@@ -249,14 +322,23 @@ public class GameScreen implements Screen {
 
     @Override
     public void pause() {
+        session.pauseGame();
         ((Main) game).adBridge.hideBanner();
-        if (bgMusic != null) bgMusic.pause();
+
+        if (bgMusic != null) {
+            bgMusic.pause();
+        }
     }
 
     @Override
     public void resume() {
-        ((Main) game).adBridge.showBanner();
-        if (bgMusic != null) bgMusic.play();
+        if (!session.isGameOver() && !session.isPaused()) {
+            ((Main) game).adBridge.showBanner();
+        }
+
+        if (bgMusic != null && !session.isPaused()) {
+            bgMusic.play();
+        }
     }
 
     @Override
